@@ -40,7 +40,6 @@ const DISTANCE_TABLE: Record<string, number> = {
   'paris|hu': 1450, 'paris|budapest': 1450,
   'paris|ma': 2100, 'paris|marrakech': 2600, 'paris|morocco': 2100,
   'paris|tr': 3000, 'paris|istanbul': 2800,
-  'paris|pt': 1800,
   'paris|si': 1200, 'paris|ljubljana': 1200,
   'paris|me': 1800, 'paris|montenegro': 1800,
   'paris|al': 2000, 'paris|albania': 2000,
