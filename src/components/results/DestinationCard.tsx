@@ -1,0 +1,70 @@
+'use client';
+
+import type { Destination } from '@/lib/types';
+import WarningBadge from './WarningBadge';
+import BudgetRange from './BudgetRange';
+
+interface DestinationCardProps {
+  destination: Destination;
+  rank: 1 | 2 | 3;
+  onSelect: () => void;
+}
+
+export default function DestinationCard({ destination, rank, onSelect }: DestinationCardProps) {
+  const d = destination;
+
+  return (
+    <button
+      onClick={onSelect}
+      className="w-full text-left bg-white border border-gray-200 rounded-btn p-4 hover:border-primary-mid hover:shadow-sm transition-all active:scale-[0.99]"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <span className="text-xl">{d.flag}</span>
+          <div>
+            <h3 className="text-base font-bold text-gray-900">{d.city}</h3>
+            <p className="text-xs text-gray-500">{d.country}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-2xl font-bold text-primary">{d.matchScore}</span>
+          <span className="text-xs text-primary font-medium">%</span>
+        </div>
+      </div>
+
+      {/* Budget */}
+      <div className="mb-2">
+        <BudgetRange min={d.budget.min} max={d.budget.max} currency={d.budget.currency} />
+      </div>
+
+      {/* Quick info */}
+      <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
+        <span>✈️ {d.flightDuration}</span>
+        <span>☀️ {d.airTemp}°C</span>
+        {d.waterTemp && <span>🌊 {d.waterTemp}°C</span>}
+      </div>
+
+      {/* Warnings */}
+      {d.warnings.length > 0 && (
+        <div className="space-y-1.5 mb-3">
+          {d.warnings.map((w, i) => (
+            <WarningBadge key={i} warning={w} />
+          ))}
+        </div>
+      )}
+
+      {/* Pills */}
+      <div className="flex flex-wrap gap-1.5">
+        {d.pills.map((pill, i) => (
+          <span
+            key={i}
+            className="text-[11px] bg-primary-light text-primary-dark px-2.5 py-1 rounded-full font-medium"
+          >
+            {pill}
+          </span>
+        ))}
+      </div>
+    </button>
+  );
+}

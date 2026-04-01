@@ -9,8 +9,17 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        primary: {
+          DEFAULT: '#534AB7',
+          light: '#EEEDFE',
+          mid: '#AFA9EC',
+          dark: '#3C3489',
+        },
         background: "var(--background)",
         foreground: "var(--foreground)",
+      },
+      borderRadius: {
+        btn: '12px',
       },
     },
   },
