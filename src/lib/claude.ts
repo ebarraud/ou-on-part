@@ -1,6 +1,5 @@
 import type { TravelProfile, Destination, Itinerary, Route } from './types';
-
-const CLAUDE_MODEL = 'claude-sonnet-4-20250514';
+import { useTravelStore } from './store';
 
 async function callClaude(prompt: string): Promise<string> {
   const res = await fetch('/api/claude', {
@@ -10,10 +9,21 @@ async function callClaude(prompt: string): Promise<string> {
   });
 
   if (!res.ok) {
-    throw new Error(`Claude API error: ${res.status}`);
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Claude API error: ${res.status}`);
   }
 
   const data = await res.json();
+
+  // Track usage
+  if (data.usage) {
+    useTravelStore.getState().addUsage(
+      data.usage.cost || 0,
+      data.usage.inputTokens || 0,
+      data.usage.outputTokens || 0
+    );
+  }
+
   return data.content;
 }
 
@@ -27,6 +37,7 @@ Génère EXACTEMENT 3 destinations en JSON avec cette structure :
     {
       "id": "slug-unique",
       "country": "Nom du pays",
+      "countryCode": "XX",
       "city": "Nom de la ville/région",
       "flag": "emoji drapeau",
       "matchScore": 98,
@@ -60,6 +71,7 @@ Règles :
 - Warnings pertinents pour le mois ${profile.month}
 - La première destination doit avoir le meilleur score
 - waterTemp peut être null si pas de mer
+- countryCode = code ISO 2 lettres du pays (ex: "GR", "ES", "TH")
 - Adapte les suggestions au style de voyage : ${profile.travelStyle === 'moving' ? 'circuit multi-étapes' : 'base fixe'}
 
 Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks.`;
@@ -70,7 +82,6 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks.`;
     const parsed = JSON.parse(content);
     return parsed.destinations;
   } catch {
-    // Try to extract JSON from response
     const match = content.match(/\{[\s\S]*\}/);
     if (match) {
       const parsed = JSON.parse(match[0]);

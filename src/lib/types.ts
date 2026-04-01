@@ -70,6 +70,7 @@ export interface Warning {
 export interface Destination {
   id: string;
   country: string;
+  countryCode: string; // ISO 2-letter code (e.g. "GR", "ES", "TH")
   city: string;
   flag: string;
   matchScore: number;

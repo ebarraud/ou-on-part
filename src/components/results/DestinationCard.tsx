@@ -1,6 +1,7 @@
 'use client';
 
 import type { Destination } from '@/lib/types';
+import { getCarCostLine } from '@/lib/transport';
 import WarningBadge from './WarningBadge';
 import BudgetRange from './BudgetRange';
 
@@ -8,10 +9,25 @@ interface DestinationCardProps {
   destination: Destination;
   rank: 1 | 2 | 3;
   onSelect: () => void;
+  departureCity?: string;
+  nights?: string;
+  hasCarTransport?: boolean;
 }
 
-export default function DestinationCard({ destination, rank, onSelect }: DestinationCardProps) {
+export default function DestinationCard({
+  destination,
+  rank,
+  onSelect,
+  departureCity,
+  nights,
+  hasCarTransport,
+}: DestinationCardProps) {
   const d = destination;
+
+  // Car cost line (only if user selected car as transport)
+  const carLine = hasCarTransport && departureCity && nights
+    ? getCarCostLine(departureCity, d.city, d.countryCode || '', nights)
+    : null;
 
   return (
     <button
@@ -44,6 +60,20 @@ export default function DestinationCard({ destination, rank, onSelect }: Destina
         <span>☀️ {d.airTemp}°C</span>
         {d.waterTemp && <span>🌊 {d.waterTemp}°C</span>}
       </div>
+
+      {/* Car cost line */}
+      {carLine && (
+        <div className={`text-xs rounded-lg px-3 py-2 mb-3 ${
+          carLine.available
+            ? 'bg-blue-50 text-blue-800'
+            : 'bg-gray-50 text-gray-500'
+        }`}>
+          <div className="font-medium">{carLine.text}</div>
+          {carLine.detail && (
+            <div className="text-[10px] mt-0.5 opacity-75">{carLine.detail}</div>
+          )}
+        </div>
+      )}
 
       {/* Warnings */}
       {d.warnings.length > 0 && (

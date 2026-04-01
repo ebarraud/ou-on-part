@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTravelStore } from '@/lib/store';
 import { generateDestinations } from '@/lib/claude';
@@ -17,25 +17,51 @@ export default function ResultsPage() {
     setIsGenerating,
   } = useTravelStore();
 
+  const [error, setError] = useState<string | null>(null);
+  const hasStarted = useRef(false);
+
   useEffect(() => {
-    if (destinations.length > 0 || isGenerating) return;
+    // Guard: don't run if already done, already generating, or already tried
+    if (destinations.length > 0 || isGenerating || hasStarted.current) return;
     if (!profile.month) {
       router.push('/');
       return;
     }
 
+    hasStarted.current = true;
     setIsGenerating(true);
+    setError(null);
+
     generateDestinations(profile)
       .then((dests) => {
         setDestinations(dests);
       })
       .catch((err) => {
         console.error('Failed to generate destinations:', err);
+        setError(String(err));
       })
       .finally(() => {
         setIsGenerating(false);
       });
-  }, [profile, destinations.length, isGenerating, setDestinations, setIsGenerating, router]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleRetry = () => {
+    hasStarted.current = false;
+    setError(null);
+    setIsGenerating(true);
+
+    generateDestinations(profile)
+      .then((dests) => {
+        setDestinations(dests);
+      })
+      .catch((err) => {
+        console.error('Failed to generate destinations:', err);
+        setError(String(err));
+      })
+      .finally(() => {
+        setIsGenerating(false);
+      });
+  };
 
   const handleSelect = (dest: typeof destinations[0]) => {
     setSelectedDestination(dest);
@@ -47,7 +73,11 @@ export default function ResultsPage() {
       {/* Header */}
       <div className="pt-6 pb-4">
         <h1 className="text-2xl font-bold text-gray-900">
-          {isGenerating ? '✨ On cherche...' : '3 destinations pour toi'}
+          {isGenerating
+            ? '✨ On cherche...'
+            : error
+              ? '😕 Oups...'
+              : '3 destinations pour toi'}
         </h1>
         <p className="text-sm text-gray-500 mt-1">
           Basé sur 15 critères · {profile.month}
@@ -64,8 +94,23 @@ export default function ResultsPage() {
         </div>
       )}
 
+      {/* Error */}
+      {error && !isGenerating && (
+        <div className="flex-1 flex flex-col items-center justify-center gap-4">
+          <p className="text-sm text-red-600 text-center bg-red-50 rounded-btn px-4 py-3">
+            {error}
+          </p>
+          <button
+            onClick={handleRetry}
+            className="px-6 py-3 rounded-btn font-semibold text-sm bg-primary text-white hover:bg-primary-dark transition-all"
+          >
+            🔄 Réessayer
+          </button>
+        </div>
+      )}
+
       {/* Results */}
-      {!isGenerating && destinations.length > 0 && (
+      {!isGenerating && !error && destinations.length > 0 && (
         <div className="space-y-4">
           {destinations.map((dest, i) => (
             <DestinationCard
@@ -73,17 +118,18 @@ export default function ResultsPage() {
               destination={dest}
               rank={(i + 1) as 1 | 2 | 3}
               onSelect={() => handleSelect(dest)}
+              departureCity={profile.departureCity}
+              nights={profile.nights || undefined}
+              hasCarTransport={profile.transport.includes('car')}
             />
           ))}
         </div>
       )}
 
-      {/* Retry button */}
+      {/* Back button */}
       {!isGenerating && (
         <button
-          onClick={() => {
-            router.push('/flow');
-          }}
+          onClick={() => router.push('/flow')}
           className="mt-6 text-sm text-gray-500 hover:text-primary underline self-center"
         >
           ↺ Affiner mes critères

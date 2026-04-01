@@ -16,7 +16,6 @@ import type { TravelProfile, QuestionConfig } from '@/lib/types';
 import QuestionStep from '@/components/flow/QuestionStep';
 import MonthPicker from '@/components/flow/MonthPicker';
 import CityPicker from '@/components/flow/CityPicker';
-import CarCalcStep from '@/components/flow/CarCalcStep';
 
 const STEP_CONFIG: Record<string, QuestionConfig> = {
   nights: Q2_NIGHTS,
@@ -108,19 +107,6 @@ export default function FlowPage() {
     );
   }
 
-  if (currentStepId === 'carCalc') {
-    return (
-      <CarCalcStep
-        departureCity={profile.departureCity}
-        onContinue={goNext}
-        onBack={goBack}
-        stepNumber={currentStep + 1}
-        totalSteps={totalSteps}
-        progress={progress}
-      />
-    );
-  }
-
   // =============================================
   // Generic QuestionStep
   // =============================================
@@ -131,18 +117,7 @@ export default function FlowPage() {
     return null;
   }
 
-  // Handle ferry availability based on departure city
-  let options = config.options;
-  if (currentStepId === 'transport') {
-    const coastalCities = ['Marseille', 'Nice', 'Bordeaux', 'Nantes'];
-    const isCoastal = coastalCities.includes(profile.departureCity);
-    options = config.options.map((opt) => {
-      if (opt.value === 'ferry' && !isCoastal) {
-        return { ...opt, disabled: true, disabledReason: `Non dispo depuis ${profile.departureCity}` };
-      }
-      return opt;
-    });
-  }
+  const options = config.options;
 
   return (
     <QuestionStep

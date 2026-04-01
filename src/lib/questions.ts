@@ -139,7 +139,7 @@ export const Q8_TRANSPORT: QuestionConfig = {
     { icon: '✈️', label: 'Avion', detail: 'Toujours disponible', value: 'plane' },
     { icon: '🚂', label: 'Train', detail: 'Selon destination', value: 'train' },
     { icon: '🚗', label: 'Voiture', detail: 'Toujours disponible', value: 'car' },
-    { icon: '⛴️', label: 'Ferry', detail: 'Selon ville de départ', value: 'ferry' },
+    { icon: '⛴️', label: 'Ferry', detail: 'Depuis un port — accès inclus dans le calcul', value: 'ferry' },
   ],
 };
 
@@ -309,7 +309,7 @@ export const Q16_STOPS: QuestionConfig = {
 
 export type StepId =
   | 'month' | 'nights' | 'budget' | 'tripContext' | 'travelStyle'
-  | 'group' | 'kidsAges' | 'departureCity' | 'transport' | 'carCalc'
+  | 'group' | 'kidsAges' | 'departureCity' | 'transport'
   | 'vibe' | 'waterTemp' | 'mountainLevel' | 'visited'
   | 'priority' | 'climate' | 'accommodation' | 'constraints'
   | 'language' | 'stopsCount';
@@ -330,11 +330,6 @@ export function buildQueue(profile: TravelProfile): StepId[] {
   }
 
   queue.push('departureCity', 'transport');
-
-  // Q8b — car calc if car selected
-  if (profile.transport.includes('car')) {
-    queue.push('carCalc');
-  }
 
   queue.push('vibe');
 

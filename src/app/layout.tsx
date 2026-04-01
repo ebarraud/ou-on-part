@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import CreditCounter from "@/components/CreditCounter";
 
 export const metadata: Metadata = {
   title: "Où on part ?",
@@ -30,6 +31,7 @@ export default function RootLayout({
         <main className="max-w-lg mx-auto">
           {children}
         </main>
+        <CreditCounter />
       </body>
     </html>
   );

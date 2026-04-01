@@ -49,6 +49,12 @@ interface TravelStore {
   // Loading states
   isGenerating: boolean;
   setIsGenerating: (v: boolean) => void;
+
+  // API cost tracking
+  totalCost: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  addUsage: (cost: number, inputTokens: number, outputTokens: number) => void;
 }
 
 export const useTravelStore = create<TravelStore>((set) => ({
@@ -74,4 +80,14 @@ export const useTravelStore = create<TravelStore>((set) => ({
 
   isGenerating: false,
   setIsGenerating: (v) => set({ isGenerating: v }),
+
+  totalCost: 0,
+  totalInputTokens: 0,
+  totalOutputTokens: 0,
+  addUsage: (cost, inputTokens, outputTokens) =>
+    set((state) => ({
+      totalCost: state.totalCost + cost,
+      totalInputTokens: state.totalInputTokens + inputTokens,
+      totalOutputTokens: state.totalOutputTokens + outputTokens,
+    })),
 }));
