@@ -28,6 +28,22 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                  registrations.forEach(function(reg) { reg.unregister(); });
+                });
+                caches.keys().then(function(names) {
+                  names.forEach(function(name) { caches.delete(name); });
+                });
+              }
+            `,
+          }}
+        />
+      </head>
       <body className="antialiased bg-white text-gray-900 min-h-screen">
         <main className="max-w-lg mx-auto">
           {children}

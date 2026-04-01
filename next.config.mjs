@@ -2,7 +2,7 @@ import withPWAInit from 'next-pwa';
 
 const withPWA = withPWAInit({
   dest: 'public',
-  disable: process.env.NODE_ENV === 'development',
+  disable: true, // Disabled until stable — old SW causes CSS cache issues
 });
 
 /** @type {import('next').NextConfig} */

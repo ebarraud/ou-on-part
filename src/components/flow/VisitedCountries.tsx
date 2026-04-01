@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 
 interface VisitedCountriesProps {
   initialSelected?: string[];
@@ -113,6 +113,34 @@ const ALL_COUNTRIES = [
   { code: 'ZW', label: 'Zimbabwe' },
 ].sort((a, b) => a.label.localeCompare(b.label, 'fr'));
 
+// Continents with their country codes
+const CONTINENTS: { id: string; icon: string; label: string; codes: string[] }[] = [
+  {
+    id: 'europe', icon: '🇪🇺', label: 'Europe',
+    codes: ['AL', 'AD', 'AT', 'AZ', 'BY', 'BE', 'BA', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'GE', 'DE', 'GR', 'HU', 'IS', 'IE', 'IT', 'KZ', 'LV', 'LT', 'LU', 'MK', 'MT', 'MD', 'MC', 'ME', 'NL', 'NO', 'PL', 'PT', 'RO', 'RU', 'RS', 'SK', 'SI', 'ES', 'SE', 'CH', 'TR', 'UA', 'GB', 'AM'],
+  },
+  {
+    id: 'asia', icon: '🌏', label: 'Asie',
+    codes: ['AF', 'BH', 'BD', 'BT', 'BN', 'KH', 'CN', 'IN', 'ID', 'IR', 'IQ', 'IL', 'JP', 'JO', 'KG', 'KW', 'LA', 'LB', 'MY', 'MV', 'MN', 'MM', 'NP', 'OM', 'PK', 'PH', 'QA', 'SA', 'SG', 'KR', 'LK', 'TW', 'TH', 'AE', 'UZ', 'VN', 'YE'],
+  },
+  {
+    id: 'africa', icon: '🌍', label: 'Afrique',
+    codes: ['DZ', 'AO', 'BJ', 'BW', 'BF', 'BI', 'CM', 'CV', 'TD', 'CI', 'DJ', 'EG', 'ET', 'GA', 'GH', 'GN', 'KE', 'MG', 'MW', 'ML', 'MR', 'MU', 'MA', 'MZ', 'NA', 'NE', 'NG', 'RW', 'SN', 'SO', 'ZA', 'SD', 'TZ', 'TG', 'TN', 'UG', 'ZM', 'ZW'],
+  },
+  {
+    id: 'north-america', icon: '🌎', label: 'Amérique du Nord',
+    codes: ['BZ', 'CA', 'CR', 'CU', 'DO', 'GT', 'HT', 'HN', 'JM', 'MX', 'NI', 'PA', 'US'],
+  },
+  {
+    id: 'south-america', icon: '🌎', label: 'Amérique du Sud',
+    codes: ['AR', 'BO', 'BR', 'CL', 'CO', 'EC', 'PY', 'PE', 'SR', 'UY', 'VE'],
+  },
+  {
+    id: 'oceania', icon: '🏝️', label: 'Océanie',
+    codes: ['AU', 'FJ', 'NZ'],
+  },
+];
+
 export default function VisitedCountries({
   initialSelected = [],
   onComplete,
@@ -134,11 +162,42 @@ export default function VisitedCountries({
     });
   };
 
+  const toggleContinent = (continent: typeof CONTINENTS[0]) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      // Check if ALL countries of this continent are already selected
+      const allSelected = continent.codes.every((c) => next.has(c));
+      if (allSelected) {
+        // Deselect all
+        continent.codes.forEach((c) => next.delete(c));
+      } else {
+        // Select all
+        continent.codes.forEach((c) => next.add(c));
+      }
+      return next;
+    });
+  };
+
+  // Check continent state: 'all' | 'some' | 'none'
+  const continentState = useMemo(() => {
+    const states: Record<string, 'all' | 'some' | 'none'> = {};
+    for (const cont of CONTINENTS) {
+      const count = cont.codes.filter((c) => selected.has(c)).length;
+      if (count === 0) states[cont.id] = 'none';
+      else if (count === cont.codes.length) states[cont.id] = 'all';
+      else states[cont.id] = 'some';
+    }
+    return states;
+  }, [selected]);
+
   const filteredCountries = search
     ? ALL_COUNTRIES.filter((c) =>
         c.label.toLowerCase().includes(search.toLowerCase())
       )
     : ALL_COUNTRIES;
+
+  // Also filter continents by search
+  const showContinents = !search;
 
   return (
     <div className="flex flex-col min-h-screen px-4 pb-8">
@@ -178,7 +237,7 @@ export default function VisitedCountries({
       <h1 className="text-2xl font-bold text-gray-900 mb-1">🌍 Destinations déjà visitées ?</h1>
       <p className="text-sm text-gray-500 mb-4">
         {showAll
-          ? 'Cherche et sélectionne les pays à éviter'
+          ? 'Sélectionne par continent ou par pays'
           : 'On évitera de te les reproposer'}
       </p>
 
@@ -248,8 +307,50 @@ export default function VisitedCountries({
             autoFocus
           />
 
-          {/* Full list */}
+          {/* Full list with continents */}
           <div className="flex-1 overflow-y-auto max-h-[50vh] space-y-1 mb-4">
+            {/* Continents */}
+            {showContinents && CONTINENTS.map((cont) => {
+              const state = continentState[cont.id];
+              return (
+                <button
+                  key={cont.id}
+                  onClick={() => toggleContinent(cont)}
+                  className={`w-full flex items-center justify-between rounded-lg px-3 py-3 text-left transition-all
+                    ${state === 'all'
+                      ? 'bg-primary text-white'
+                      : state === 'some'
+                        ? 'bg-primary-light text-primary-dark border border-primary-mid'
+                        : 'bg-gray-50 hover:bg-gray-100 border border-transparent'
+                    }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">{cont.icon}</span>
+                    <span className="text-sm font-bold">{cont.label}</span>
+                    <span className={`text-[10px] ${state === 'all' ? 'text-white/70' : 'text-gray-400'}`}>
+                      ({cont.codes.length} pays)
+                    </span>
+                  </div>
+                  {state === 'all' && (
+                    <span className="w-5 h-5 rounded-full bg-white text-primary flex items-center justify-center text-xs shrink-0 font-bold">
+                      ✓
+                    </span>
+                  )}
+                  {state === 'some' && (
+                    <span className="w-5 h-5 rounded-full bg-primary-mid text-white flex items-center justify-center text-[10px] shrink-0">
+                      —
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+
+            {/* Separator */}
+            {showContinents && (
+              <div className="border-t border-gray-200 my-2" />
+            )}
+
+            {/* Countries */}
             {filteredCountries.map((c) => {
               const isSelected = selected.has(c.code);
               return (
