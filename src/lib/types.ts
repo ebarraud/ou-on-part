@@ -36,8 +36,8 @@ export interface TravelProfile {
   // Priorités
   priority: ('rest' | 'discover' | 'sport' | 'food' | 'scenery' | 'nightlife')[];
 
-  // Climat
-  climate: 'hot-dry' | 'tropical' | 'temperate' | 'cold' | null;
+  // Climat (multi-select)
+  climate: ('hot-dry' | 'tropical' | 'temperate' | 'cold')[];
 
   // Hébergement
   accommodation: ('hotel' | 'apartment' | 'allinclusive' | 'nature' | 'boutique' | 'hostel')[];

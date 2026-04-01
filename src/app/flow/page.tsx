@@ -8,7 +8,7 @@ import {
   Q2_NIGHTS, Q3_BUDGET, Q4_TRIP_CONTEXT_FULL, Q5_TRAVEL_STYLE,
   Q6_GROUP, Q6B_KIDS, Q8_TRANSPORT,
   Q9_VIBE, Q9B_WATER_TEMP, Q9C_MOUNTAIN_LEVEL,
-  Q10_VISITED, Q11_PRIORITY, Q12_CLIMATE, Q13_ACCOMMODATION,
+  Q11_PRIORITY, Q12_CLIMATE, Q13_ACCOMMODATION,
   Q14_CONSTRAINTS, Q15_LANGUAGE, Q16_STOPS,
   type StepId,
 } from '@/lib/questions';
@@ -16,6 +16,7 @@ import type { TravelProfile, QuestionConfig } from '@/lib/types';
 import QuestionStep from '@/components/flow/QuestionStep';
 import MonthPicker from '@/components/flow/MonthPicker';
 import CityPicker from '@/components/flow/CityPicker';
+import VisitedCountries from '@/components/flow/VisitedCountries';
 
 const STEP_CONFIG: Record<string, QuestionConfig> = {
   nights: Q2_NIGHTS,
@@ -28,7 +29,6 @@ const STEP_CONFIG: Record<string, QuestionConfig> = {
   vibe: Q9_VIBE,
   waterTemp: Q9B_WATER_TEMP,
   mountainLevel: Q9C_MOUNTAIN_LEVEL,
-  visited: Q10_VISITED,
   priority: Q11_PRIORITY,
   climate: Q12_CLIMATE,
   accommodation: Q13_ACCOMMODATION,
@@ -97,6 +97,21 @@ export default function FlowPage() {
       <CityPicker
         onSelect={(city) => {
           setField('departureCity', city);
+          goNext();
+        }}
+        onBack={goBack}
+        stepNumber={currentStep + 1}
+        totalSteps={totalSteps}
+        progress={progress}
+      />
+    );
+  }
+
+  if (currentStepId === 'visited') {
+    return (
+      <VisitedCountries
+        onComplete={(codes) => {
+          setField('visited', codes);
           goNext();
         }}
         onBack={goBack}

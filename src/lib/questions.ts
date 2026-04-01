@@ -232,7 +232,9 @@ export const Q11_PRIORITY: QuestionConfig = {
 export const Q12_CLIMATE: QuestionConfig = {
   id: 'climate',
   question: '🌤️ Quel climat ?',
+  subtitle: 'Un ou plusieurs choix possibles',
   field: 'climate',
+  multi: true,
   columns: 2,
   options: [
     { icon: '☀️', label: 'Chaud & sec', detail: 'Méditerranée', value: 'hot-dry' },
