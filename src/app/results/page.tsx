@@ -143,7 +143,11 @@ export default function ResultsPage() {
       {/* Back button */}
       {!isGenerating && (
         <button
-          onClick={() => router.push('/flow')}
+          onClick={() => {
+            setDestinations([]);
+            hasStarted.current = false;
+            router.push('/flow');
+          }}
           className="mt-6 text-sm text-gray-500 hover:text-primary underline self-center"
         >
           ↺ Affiner mes critères

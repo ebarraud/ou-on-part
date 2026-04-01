@@ -28,8 +28,20 @@ async function callClaude(prompt: string): Promise<string> {
 }
 
 export async function generateDestinations(profile: TravelProfile): Promise<Destination[]> {
+  // Build budget guidance
+  const budgetGuide: Record<string, string> = {
+    tight: 'SERRÉ — max 50€/jour/personne (hébergement + repas + activités, hors vol). Privilégie les destinations pas chères : Balkans, Asie du Sud-Est, Maroc, Tunisie, Europe de l\'Est, etc.',
+    moderate: 'MODÉRÉ — 50-120€/jour/personne. Bon rapport qualité/prix.',
+    comfort: 'CONFORT — 120-250€/jour/personne. Hôtels de qualité, restaurants, expériences.',
+    unlimited: 'SANS LIMITE — pas de contrainte budgétaire. Propose du haut de gamme.',
+  };
+
+  const budgetInstruction = budgetGuide[profile.budget || 'moderate'] || budgetGuide.moderate;
+
   const prompt = `Tu es un expert voyagiste francophone. Voici le profil du voyageur :
 ${JSON.stringify(profile, null, 2)}
+
+BUDGET : ${budgetInstruction}
 
 Génère EXACTEMENT 3 destinations en JSON avec cette structure :
 {
@@ -64,15 +76,18 @@ Génère EXACTEMENT 3 destinations en JSON avec cette structure :
   ]
 }
 
-Règles :
+Règles STRICTES :
 - Les destinations NE DOIVENT PAS être dans la liste des pays déjà visités : ${profile.visited.join(', ')}
 - matchScore entre 70 et 99
-- Budget réaliste par personne pour ${profile.nights} nuits
+- IMPORTANT : Le budget TOTAL (vol + hébergement + repas + activités) doit RESPECTER le niveau de budget choisi (${profile.budget}). ${budgetInstruction}
+- Le champ budget.min et budget.max = budget TOTAL par personne pour ${profile.nights} nuits, vol inclus
 - Warnings pertinents pour le mois ${profile.month}
 - La première destination doit avoir le meilleur score
 - waterTemp peut être null si pas de mer
 - countryCode = code ISO 2 lettres du pays (ex: "GR", "ES", "TH")
 - Adapte les suggestions au style de voyage : ${profile.travelStyle === 'moving' ? 'circuit multi-étapes' : 'base fixe'}
+- IMPORTANT : Pense aussi aux territoires d'outre-mer français (Martinique, Guadeloupe, Réunion, Nouvelle-Calédonie, Polynésie, Guyane, Mayotte) comme destinations possibles. Utilise "MQ" pour Martinique, "GP" pour Guadeloupe, "RE" pour Réunion, "NC" pour Nouvelle-Calédonie, "PF" pour Polynésie française, "GF" pour Guyane, "YT" pour Mayotte. Ce ne sont PAS la même chose que la France métropolitaine (FR).
+- Varie les destinations : propose des destinations originales et diversifiées, pas toujours les mêmes classiques
 
 Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks.`;
 
