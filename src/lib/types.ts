@@ -6,6 +6,7 @@ export interface TravelProfile {
   // Temporel
   month: string;
   monthIndex: number; // 0-11
+  monthHalf: '1' | '2' | null; // 1 = première quinzaine, 2 = deuxième quinzaine
   year: number;
   nights: '2-3' | '4-6' | '7' | '10+' | null;
 

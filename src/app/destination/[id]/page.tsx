@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useTravelStore } from '@/lib/store';
 import { calculateBudget } from '@/lib/budget';
+import { getSkyscannerLink, getBookingLink, getGetYourGuideLink } from '@/lib/booking-links';
 import WarningBadge from '@/components/results/WarningBadge';
 
 export default function DestinationPage() {
@@ -131,11 +132,11 @@ export default function DestinationPage() {
           </div>
         )}
 
-        {/* Booking links */}
+        {/* Booking links — pre-filled from profile */}
         <div className="mb-6 space-y-2">
           <h2 className="text-lg font-bold text-gray-900 mb-3">Réserver</h2>
           <a
-            href={dest.bookingLinks.flights}
+            href={getSkyscannerLink(profile, dest)}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-3 rounded-btn border border-gray-200 px-4 py-3 hover:bg-gray-50 transition-colors"
@@ -144,7 +145,7 @@ export default function DestinationPage() {
             <span className="text-sm font-medium">Trouver un vol sur Skyscanner</span>
           </a>
           <a
-            href={dest.bookingLinks.hotels}
+            href={getBookingLink(profile, dest)}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-3 rounded-btn border border-gray-200 px-4 py-3 hover:bg-gray-50 transition-colors"
@@ -153,7 +154,7 @@ export default function DestinationPage() {
             <span className="text-sm font-medium">Trouver un hôtel sur Booking</span>
           </a>
           <a
-            href={dest.bookingLinks.activities}
+            href={getGetYourGuideLink(profile, dest)}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-3 rounded-btn border border-gray-200 px-4 py-3 hover:bg-gray-50 transition-colors"

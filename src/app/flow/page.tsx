@@ -78,10 +78,11 @@ export default function FlowPage() {
   if (currentStepId === 'month') {
     return (
       <MonthPicker
-        onSelect={(month, monthIndex, year) => {
+        onSelect={(month, monthIndex, year, monthHalf) => {
           setField('month', month);
           setField('monthIndex', monthIndex);
           setField('year', year);
+          setField('monthHalf', monthHalf);
           goNext();
         }}
         onBack={goBack}

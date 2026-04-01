@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6B5CE7"/>
+      <stop offset="100%" stop-color="#534AB7"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.25)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded square background -->
+  <rect width="512" height="512" rx="96" ry="96" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="96" ry="96" fill="url(#shine)"/>
+  <!-- Stylized paper airplane -->
+  <g transform="translate(256,256) rotate(-15)">
+    <path d="M-140,20 L140,-80 L-20,100 Z" fill="white" opacity="0.95"/>
+    <path d="M-140,20 L140,-80 L20,10 Z" fill="white"/>
+    <path d="M20,10 L140,-80 L-20,100 Z" fill="rgba(255,255,255,0.75)"/>
+    <path d="M-140,20 L20,10 L-20,100 Z" fill="rgba(255,255,255,0.55)"/>
+  </g>
+  <!-- Trail dots -->
+  <circle cx="105" cy="340" r="10" fill="rgba(255,255,255,0.6)"/>
+  <circle cx="130" cy="360" r="7" fill="rgba(255,255,255,0.4)"/>
+  <circle cx="150" cy="375" r="5" fill="rgba(255,255,255,0.25)"/>
+</svg>

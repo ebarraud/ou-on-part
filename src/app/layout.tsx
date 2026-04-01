@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import CreditCounter from "@/components/CreditCounter";
+import InstallPrompt from "@/components/InstallPrompt";
 
 export const metadata: Metadata = {
   title: "Où on part ?",
@@ -32,6 +33,7 @@ export default function RootLayout({
           {children}
         </main>
         <CreditCounter />
+        <InstallPrompt />
       </body>
     </html>
   );

@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useTravelStore } from '@/lib/store';
+import { APP_VERSION } from '@/lib/version';
 
 export default function HomePage() {
   const router = useRouter();
@@ -48,7 +49,7 @@ export default function HomePage() {
       </button>
 
       <p className="text-xs text-gray-400 mt-6">
-        100% boutons · Aucun texte à taper · 2 min
+        team gougoutte — v{APP_VERSION}
       </p>
     </div>
   );

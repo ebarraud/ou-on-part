@@ -5,6 +5,7 @@ import type { TravelProfile, Destination, Itinerary, Route } from './types';
 const initialProfile: TravelProfile = {
   month: '',
   monthIndex: -1,
+  monthHalf: null,
   year: 0,
   nights: null,
   budget: null,

@@ -1,7 +1,7 @@
 'use client';
 
 interface MonthPickerProps {
-  onSelect: (month: string, monthIndex: number, year: number) => void;
+  onSelect: (month: string, monthIndex: number, year: number, monthHalf: '1' | '2') => void;
   onBack?: () => void;
   stepNumber: number;
   totalSteps: number;
@@ -33,8 +33,14 @@ export default function MonthPicker({
   const months = Array.from({ length: 12 }, (_, i) => {
     const idx = (currentMonth + 1 + i) % 12;
     const year = currentYear + (currentMonth + 1 + i >= 12 ? 1 : 0);
-    return { idx, year, label: `${MONTH_NAMES[idx]} / ${year}` };
+    return { idx, year };
   });
+
+  const handleSelect = (monthIdx: number, year: number, half: '1' | '2') => {
+    const halfLabel = half === '1' ? 'début' : 'fin';
+    const monthLabel = `${halfLabel} ${FULL_MONTH_NAMES[monthIdx]} ${year}`;
+    onSelect(monthLabel, monthIdx, year, half);
+  };
 
   return (
     <div className="flex flex-col min-h-screen px-4 pb-8">
@@ -64,20 +70,47 @@ export default function MonthPicker({
         </span>
       </div>
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">📅 Quel mois ?</h1>
-      <p className="text-sm text-gray-500 mb-6">Choisis ton mois de départ</p>
+      <h1 className="text-2xl font-bold text-gray-900 mb-1">📅 Quand pars-tu ?</h1>
+      <p className="text-sm text-gray-500 mb-4">Choisis ta période de départ</p>
 
-      <div className="grid grid-cols-4 gap-3">
+      {/* Legend */}
+      <div className="flex items-center gap-4 text-xs text-gray-400 mb-3 px-1">
+        <span>← 1ère quinzaine</span>
+        <span className="ml-auto">2ème quinzaine →</span>
+      </div>
+
+      <div className="grid grid-cols-4 gap-2">
         {months.map((m) => (
-          <button
+          <div
             key={`${m.idx}-${m.year}`}
-            onClick={() => onSelect(`${FULL_MONTH_NAMES[m.idx]} ${m.year}`, m.idx, m.year)}
-            className="flex flex-col items-center justify-center rounded-btn border border-gray-200 bg-white py-3 px-1
-              hover:border-primary-mid hover:bg-primary-light active:scale-[0.97] transition-all"
+            className="flex flex-col rounded-btn border border-gray-200 bg-white overflow-hidden"
           >
-            <span className="text-sm font-semibold">{MONTH_NAMES[m.idx]}</span>
-            <span className="text-[11px] text-gray-400">{m.year}</span>
-          </button>
+            {/* Month label */}
+            <div className="text-center pt-1.5 pb-0.5">
+              <span className="text-xs font-semibold text-gray-700">{MONTH_NAMES[m.idx]}</span>
+              <span className="text-[10px] text-gray-400 ml-0.5">{String(m.year).slice(2)}</span>
+            </div>
+            {/* Two halves side by side */}
+            <div className="flex border-t border-gray-100">
+              <button
+                onClick={() => handleSelect(m.idx, m.year, '1')}
+                className="flex-1 py-2.5 text-[11px] font-medium text-gray-600
+                  hover:bg-primary-light hover:text-primary active:scale-[0.95] transition-all
+                  border-r border-gray-100"
+                title={`1-15 ${FULL_MONTH_NAMES[m.idx]}`}
+              >
+                1-15
+              </button>
+              <button
+                onClick={() => handleSelect(m.idx, m.year, '2')}
+                className="flex-1 py-2.5 text-[11px] font-medium text-gray-600
+                  hover:bg-primary-light hover:text-primary active:scale-[0.95] transition-all"
+                title={`16-31 ${FULL_MONTH_NAMES[m.idx]}`}
+              >
+                16-31
+              </button>
+            </div>
+          </div>
         ))}
       </div>
     </div>
