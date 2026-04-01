@@ -6,11 +6,25 @@ import { APP_VERSION } from '@/lib/version';
 
 export default function HomePage() {
   const router = useRouter();
+  const profile = useTravelStore((s) => s.profile);
+  const destinations = useTravelStore((s) => s.destinations);
   const resetProfile = useTravelStore((s) => s.resetProfile);
 
-  const handleStart = () => {
+  // Has user already started a session?
+  const hasSession = !!profile.month;
+  const hasResults = destinations.length > 0;
+
+  const handleNew = () => {
     resetProfile();
     router.push('/flow');
+  };
+
+  const handleResume = () => {
+    if (hasResults) {
+      router.push('/results');
+    } else {
+      router.push('/flow');
+    }
   };
 
   return (
@@ -40,13 +54,38 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* CTA */}
-      <button
-        onClick={handleStart}
-        className="w-full max-w-xs py-4 rounded-btn font-semibold text-lg bg-primary text-white hover:bg-primary-dark active:scale-[0.98] transition-all shadow-lg shadow-primary/20"
-      >
-        C&apos;est parti ! →
-      </button>
+      {/* CTAs */}
+      {hasSession ? (
+        <div className="w-full max-w-xs space-y-3">
+          {/* Resume */}
+          <button
+            onClick={handleResume}
+            className="w-full py-4 rounded-btn font-semibold text-lg bg-primary text-white hover:bg-primary-dark active:scale-[0.98] transition-all shadow-lg shadow-primary/20"
+          >
+            {hasResults ? 'Voir mes résultats →' : 'Reprendre →'}
+          </button>
+
+          {/* Session info */}
+          <p className="text-xs text-gray-400">
+            {profile.month} · {profile.departureCity || '...'} · {profile.visited.length > 0 ? `${profile.visited.length} pays exclus` : ''}
+          </p>
+
+          {/* New search */}
+          <button
+            onClick={handleNew}
+            className="w-full py-3 rounded-btn font-semibold text-sm border border-gray-200 text-gray-600 hover:border-primary hover:text-primary active:scale-[0.98] transition-all"
+          >
+            Nouvelle recherche
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={handleNew}
+          className="w-full max-w-xs py-4 rounded-btn font-semibold text-lg bg-primary text-white hover:bg-primary-dark active:scale-[0.98] transition-all shadow-lg shadow-primary/20"
+        >
+          C&apos;est parti ! →
+        </button>
+      )}
 
       <p className="text-xs text-gray-400 mt-6">
         team gougoutte — v{APP_VERSION}
