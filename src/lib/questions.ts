@@ -177,8 +177,10 @@ export const Q9B_WATER_TEMP: QuestionConfig = {
 export const Q9C_MOUNTAIN_LEVEL: QuestionConfig = {
   id: 'mountainLevel',
   question: '⛰️ Niveau montagne ?',
+  subtitle: 'Un ou plusieurs niveaux',
   contextBadge: '🏔️ Spécifique montagne',
   field: 'mountainLevel',
+  multi: true,
   layout: 'list',
   options: [
     { icon: '🚶', label: 'Balades tranquilles', detail: 'Pas d\'effort', value: 'walk' },

@@ -10,6 +10,7 @@ export default function ResultsPage() {
   const router = useRouter();
   const {
     profile,
+    setField,
     destinations,
     setDestinations,
     setSelectedDestination,
@@ -20,8 +21,25 @@ export default function ResultsPage() {
   const [error, setError] = useState<string | null>(null);
   const hasStarted = useRef(false);
 
+  const generate = (overrideProfile?: typeof profile) => {
+    const p = overrideProfile || profile;
+    setIsGenerating(true);
+    setError(null);
+
+    generateDestinations(p)
+      .then((dests) => {
+        setDestinations(dests);
+      })
+      .catch((err) => {
+        console.error('Failed to generate destinations:', err);
+        setError(String(err));
+      })
+      .finally(() => {
+        setIsGenerating(false);
+      });
+  };
+
   useEffect(() => {
-    // Guard: don't run if already done, already generating, or already tried
     if (destinations.length > 0 || isGenerating || hasStarted.current) return;
     if (!profile.month) {
       router.push('/');
@@ -29,38 +47,28 @@ export default function ResultsPage() {
     }
 
     hasStarted.current = true;
-    setIsGenerating(true);
-    setError(null);
-
-    generateDestinations(profile)
-      .then((dests) => {
-        setDestinations(dests);
-      })
-      .catch((err) => {
-        console.error('Failed to generate destinations:', err);
-        setError(String(err));
-      })
-      .finally(() => {
-        setIsGenerating(false);
-      });
+    generate();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleRetry = () => {
     hasStarted.current = false;
-    setError(null);
-    setIsGenerating(true);
+    generate();
+  };
 
-    generateDestinations(profile)
-      .then((dests) => {
-        setDestinations(dests);
-      })
-      .catch((err) => {
-        console.error('Failed to generate destinations:', err);
-        setError(String(err));
-      })
-      .finally(() => {
-        setIsGenerating(false);
-      });
+  const handleReject = (countryCode: string) => {
+    // Add rejected country to visited list
+    const newVisited = [...profile.visited];
+    if (!newVisited.includes(countryCode)) {
+      newVisited.push(countryCode);
+    }
+    setField('visited', newVisited);
+
+    // Clear current destinations and regenerate
+    setDestinations([]);
+
+    // Use updated profile for generation
+    const updatedProfile = { ...profile, visited: newVisited };
+    generate(updatedProfile);
   };
 
   const handleSelect = (dest: typeof destinations[0]) => {
@@ -82,6 +90,11 @@ export default function ResultsPage() {
         <p className="text-sm text-gray-500 mt-1">
           Basé sur 15 critères · {profile.month}
         </p>
+        {profile.visited.length > 0 && !isGenerating && (
+          <p className="text-xs text-gray-400 mt-1">
+            Pays exclus : {profile.visited.length}
+          </p>
+        )}
       </div>
 
       {/* Loading */}
@@ -118,6 +131,7 @@ export default function ResultsPage() {
               destination={dest}
               rank={(i + 1) as 1 | 2 | 3}
               onSelect={() => handleSelect(dest)}
+              onReject={handleReject}
               departureCity={profile.departureCity}
               nights={profile.nights || undefined}
               hasCarTransport={profile.transport.includes('car')}

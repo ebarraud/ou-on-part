@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { TravelProfile, Destination, Itinerary, Route } from './types';
 
 const initialProfile: TravelProfile = {
@@ -15,7 +16,7 @@ const initialProfile: TravelProfile = {
   transport: [],
   vibe: [],
   waterTemp: null,
-  mountainLevel: null,
+  mountainLevel: [],
   priority: [],
   climate: [],
   accommodation: [],
@@ -57,37 +58,62 @@ interface TravelStore {
   addUsage: (cost: number, inputTokens: number, outputTokens: number) => void;
 }
 
-export const useTravelStore = create<TravelStore>((set) => ({
-  profile: { ...initialProfile },
-  setField: (key, value) =>
-    set((state) => ({
-      profile: { ...state.profile, [key]: value },
-    })),
-  resetProfile: () => set({ profile: { ...initialProfile }, currentStep: 0 }),
+export const useTravelStore = create<TravelStore>()(
+  persist(
+    (set) => ({
+      profile: { ...initialProfile },
+      setField: (key, value) =>
+        set((state) => ({
+          profile: { ...state.profile, [key]: value },
+        })),
+      resetProfile: () => set({
+        profile: { ...initialProfile },
+        currentStep: 0,
+        destinations: [],
+        selectedDestination: null,
+        itinerary: null,
+        route: null,
+      }),
 
-  currentStep: 0,
-  setCurrentStep: (step) => set({ currentStep: step }),
+      currentStep: 0,
+      setCurrentStep: (step) => set({ currentStep: step }),
 
-  destinations: [],
-  setDestinations: (d) => set({ destinations: d }),
-  selectedDestination: null,
-  setSelectedDestination: (d) => set({ selectedDestination: d }),
+      destinations: [],
+      setDestinations: (d) => set({ destinations: d }),
+      selectedDestination: null,
+      setSelectedDestination: (d) => set({ selectedDestination: d }),
 
-  itinerary: null,
-  setItinerary: (i) => set({ itinerary: i }),
-  route: null,
-  setRoute: (r) => set({ route: r }),
+      itinerary: null,
+      setItinerary: (i) => set({ itinerary: i }),
+      route: null,
+      setRoute: (r) => set({ route: r }),
 
-  isGenerating: false,
-  setIsGenerating: (v) => set({ isGenerating: v }),
+      isGenerating: false,
+      setIsGenerating: (v) => set({ isGenerating: v }),
 
-  totalCost: 0,
-  totalInputTokens: 0,
-  totalOutputTokens: 0,
-  addUsage: (cost, inputTokens, outputTokens) =>
-    set((state) => ({
-      totalCost: state.totalCost + cost,
-      totalInputTokens: state.totalInputTokens + inputTokens,
-      totalOutputTokens: state.totalOutputTokens + outputTokens,
-    })),
-}));
+      totalCost: 0,
+      totalInputTokens: 0,
+      totalOutputTokens: 0,
+      addUsage: (cost, inputTokens, outputTokens) =>
+        set((state) => ({
+          totalCost: state.totalCost + cost,
+          totalInputTokens: state.totalInputTokens + inputTokens,
+          totalOutputTokens: state.totalOutputTokens + outputTokens,
+        })),
+    }),
+    {
+      name: 'ou-on-part-storage',
+      partialize: (state) => ({
+        profile: state.profile,
+        currentStep: state.currentStep,
+        destinations: state.destinations,
+        selectedDestination: state.selectedDestination,
+        itinerary: state.itinerary,
+        route: state.route,
+        totalCost: state.totalCost,
+        totalInputTokens: state.totalInputTokens,
+        totalOutputTokens: state.totalOutputTokens,
+      }),
+    }
+  )
+);

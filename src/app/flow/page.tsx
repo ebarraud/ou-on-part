@@ -110,6 +110,7 @@ export default function FlowPage() {
   if (currentStepId === 'visited') {
     return (
       <VisitedCountries
+        initialSelected={profile.visited}
         onComplete={(codes) => {
           setField('visited', codes);
           goNext();
@@ -134,6 +135,14 @@ export default function FlowPage() {
 
   const options = config.options;
 
+  // Get current value from profile for pre-filling on back navigation
+  const currentValue = profile[config.field as keyof TravelProfile];
+  const initialValues: string[] = Array.isArray(currentValue)
+    ? (currentValue as string[])
+    : currentValue
+      ? [String(currentValue)]
+      : [];
+
   return (
     <QuestionStep
       key={currentStepId}
@@ -145,6 +154,7 @@ export default function FlowPage() {
       columns={config.columns}
       layout={config.layout}
       skipLabel={config.skipLabel}
+      initialValues={config.multi ? initialValues : []}
       stepNumber={currentStep + 1}
       totalSteps={totalSteps}
       progress={progress}

@@ -31,7 +31,7 @@ export interface TravelProfile {
 
   // Questions contextuelles
   waterTemp: 'any' | 'fresh' | 'warm' | 'tropical' | null;
-  mountainLevel: 'walk' | 'hike' | 'trek' | 'climb' | null;
+  mountainLevel: ('walk' | 'hike' | 'trek' | 'climb')[];
 
   // Priorités
   priority: ('rest' | 'discover' | 'sport' | 'food' | 'scenery' | 'nightlife')[];

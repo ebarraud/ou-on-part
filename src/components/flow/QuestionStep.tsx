@@ -12,6 +12,7 @@ interface QuestionStepProps {
   columns?: 2 | 3 | 4;
   layout?: 'grid' | 'list';
   skipLabel?: string;
+  initialValues?: string[];
   onComplete: (values: string[]) => void;
   onBack?: () => void;
   stepNumber: number;
@@ -28,17 +29,17 @@ export default function QuestionStep({
   columns = 2,
   layout = 'grid',
   skipLabel,
+  initialValues = [],
   onComplete,
   onBack,
   stepNumber,
   totalSteps,
   progress,
 }: QuestionStepProps) {
-  const [selected, setSelected] = useState<string[]>([]);
+  const [selected, setSelected] = useState<string[]>(initialValues);
 
   const handleSelect = (value: string) => {
     if (!multi) {
-      // Single select → immediate advance
       onComplete([value]);
       return;
     }

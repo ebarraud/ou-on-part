@@ -3,6 +3,7 @@
 import { useState } from 'react';
 
 interface VisitedCountriesProps {
+  initialSelected?: string[];
   onComplete: (codes: string[]) => void;
   onBack?: () => void;
   stepNumber: number;
@@ -113,13 +114,14 @@ const ALL_COUNTRIES = [
 ].sort((a, b) => a.label.localeCompare(b.label, 'fr'));
 
 export default function VisitedCountries({
+  initialSelected = [],
   onComplete,
   onBack,
   stepNumber,
   totalSteps,
   progress,
 }: VisitedCountriesProps) {
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(new Set(initialSelected));
   const [showAll, setShowAll] = useState(false);
   const [search, setSearch] = useState('');
 
