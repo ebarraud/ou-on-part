@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTravelStore } from '@/lib/store';
-import { generateDestinations } from '@/lib/claude';
+import { generateDestinations, generateOneDestination } from '@/lib/claude';
 import DestinationCard from '@/components/results/DestinationCard';
 
 export default function ResultsPage() {
@@ -19,6 +19,7 @@ export default function ResultsPage() {
   } = useTravelStore();
 
   const [error, setError] = useState<string | null>(null);
+  const [replacingIndex, setReplacingIndex] = useState<number | null>(null);
   const hasStarted = useRef(false);
 
   const generate = (overrideProfile?: typeof profile) => {
@@ -67,12 +68,33 @@ export default function ResultsPage() {
     }
     setField('visited', newVisited);
 
-    // Clear current destinations and regenerate
-    setDestinations([]);
+    // Find index of rejected destination
+    const rejectedIndex = destinations.findIndex(
+      (d) => d.countryCode === countryCode
+    );
+    if (rejectedIndex === -1) return;
 
-    // Use updated profile for generation
+    setReplacingIndex(rejectedIndex);
+    setError(null);
+
+    // Exclude visited + all currently displayed countries
+    const allDisplayedCodes = destinations.map((d) => d.countryCode);
     const updatedProfile = { ...profile, visited: newVisited };
-    generate(updatedProfile);
+
+    generateOneDestination(updatedProfile, allDisplayedCodes)
+      .then((newDest) => {
+        const updated = [...destinations];
+        updated[rejectedIndex] = newDest;
+        setDestinations(updated);
+      })
+      .catch((err) => {
+        console.error('Failed to generate replacement:', err);
+        // Fallback: remove the rejected card
+        setDestinations(destinations.filter((_, i) => i !== rejectedIndex));
+      })
+      .finally(() => {
+        setReplacingIndex(null);
+      });
   };
 
   const handleSelect = (dest: typeof destinations[0]) => {
@@ -130,16 +152,23 @@ export default function ResultsPage() {
       {!isGenerating && !error && destinations.length > 0 && (
         <div className="space-y-4">
           {destinations.map((dest, i) => (
-            <DestinationCard
-              key={dest.id}
-              destination={dest}
-              rank={(i + 1) as 1 | 2 | 3}
-              onSelect={() => handleSelect(dest)}
-              onReject={handleReject}
-              departureCity={profile.departureCity}
-              nights={profile.nights || undefined}
-              hasCarTransport={profile.transport.includes('car')}
-            />
+            replacingIndex === i ? (
+              <div key={`replacing-${i}`} className="w-full bg-white border border-gray-200 rounded-btn p-8 flex flex-col items-center justify-center gap-3">
+                <div className="w-8 h-8 border-3 border-primary-light border-t-primary rounded-full animate-spin" />
+                <p className="text-sm text-gray-400">Recherche d&apos;une autre destination...</p>
+              </div>
+            ) : (
+              <DestinationCard
+                key={dest.id}
+                destination={dest}
+                rank={(i + 1) as 1 | 2 | 3}
+                onSelect={() => handleSelect(dest)}
+                onReject={replacingIndex !== null ? undefined : handleReject}
+                departureCity={profile.departureCity}
+                nights={profile.nights || undefined}
+                hasCarTransport={profile.transport.includes('car')}
+              />
+            )
           ))}
         </div>
       )}
