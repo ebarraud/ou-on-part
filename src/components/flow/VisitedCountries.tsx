@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 
 interface VisitedCountriesProps {
   initialSelected?: string[];
@@ -153,6 +153,15 @@ export default function VisitedCountries({
   const [showAll, setShowAll] = useState(false);
   const [search, setSearch] = useState('');
 
+  // Sync with initialSelected after zustand hydration from localStorage
+  const hydrated = useRef(false);
+  useEffect(() => {
+    if (!hydrated.current && initialSelected && initialSelected.length > 0) {
+      setSelected(new Set(initialSelected));
+    }
+    hydrated.current = true;
+  }, [initialSelected]);
+
   const toggle = (code: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -277,13 +286,15 @@ export default function VisitedCountries({
             🌐 Autre pays...
           </button>
 
-          {/* Skip */}
-          <button
-            onClick={() => onComplete([])}
-            className="text-sm text-gray-500 hover:text-primary underline self-center mb-4"
-          >
-            Passer — première fois que je voyage
-          </button>
+          {/* Skip — only show when no countries are selected (avoids clearing rejected countries) */}
+          {selected.size === 0 && (
+            <button
+              onClick={() => onComplete([])}
+              className="text-sm text-gray-500 hover:text-primary underline self-center mb-4"
+            >
+              Passer — première fois que je voyage
+            </button>
+          )}
 
           {/* Confirm */}
           {selected.size > 0 && (

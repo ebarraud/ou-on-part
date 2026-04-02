@@ -88,7 +88,7 @@ export default function HomePage() {
       )}
 
       <p className="text-xs text-gray-400 mt-6">
-        team gougoutte — v{APP_VERSION}
+        EBA — v{APP_VERSION}
       </p>
     </div>
   );

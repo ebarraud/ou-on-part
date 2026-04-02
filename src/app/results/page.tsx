@@ -28,7 +28,11 @@ export default function ResultsPage() {
 
     generateDestinations(p)
       .then((dests) => {
-        setDestinations(dests);
+        // Client-side filter: ensure no visited/rejected country slips through
+        const filtered = dests.filter(
+          (d) => !p.visited.includes(d.countryCode)
+        );
+        setDestinations(filtered);
       })
       .catch((err) => {
         console.error('Failed to generate destinations:', err);
