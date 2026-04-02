@@ -118,7 +118,7 @@ export async function generateOneDestination(
   };
 
   const budgetInstruction = budgetGuide[profile.budget || 'moderate'] || budgetGuide.moderate;
-  const allExcluded = [...new Set([...profile.visited, ...excludeCountryCodes])];
+  const allExcluded = Array.from(new Set([...profile.visited, ...excludeCountryCodes]));
 
   const prompt = `Tu es un expert voyagiste francophone. Voici le profil du voyageur :
 ${JSON.stringify(profile, null, 2)}
