@@ -67,14 +67,14 @@ export const useTravelStore = create<TravelStore>()(
         set((state) => ({
           profile: { ...state.profile, [key]: value },
         })),
-      resetProfile: () => set({
-        profile: { ...initialProfile },
+      resetProfile: () => set((state) => ({
+        profile: { ...initialProfile, visited: state.profile.visited },
         currentStep: 0,
         destinations: [],
         selectedDestination: null,
         itinerary: null,
         route: null,
-      }),
+      })),
 
       currentStep: 0,
       setCurrentStep: (step) => set({ currentStep: step }),
