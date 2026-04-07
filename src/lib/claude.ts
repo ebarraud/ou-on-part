@@ -97,6 +97,7 @@ CONTEXTE & GROUPE :
 TRANSPORT & DÉPART :
 - Ville de départ : ${profile.departureCity}. La durée de vol (flightDuration) doit être calculée DEPUIS cette ville
 - Transports acceptés : ${profile.transport.join(', ')}. Ne propose QUE des destinations accessibles avec ces modes de transport
+${profile.transport.some((t: string) => ['car', 'train', 'ferry'].includes(t)) && !profile.transport.includes('plane') ? `- CONTRAINTE TEMPS DE TRAJET (voiture/train/ferry) : le trajet ALLER depuis ${profile.departureCity} ne doit PAS dépasser ${profile.nights === '10+' ? '8h' : '4h'}. C'est une règle STRICTE. Exemple : pour un week-end depuis Grenoble, la Croatie ou la Sardaigne sont TROP LOIN. Privilégie les destinations proches.` : profile.transport.some((t: string) => ['car', 'train', 'ferry'].includes(t)) && profile.transport.includes('plane') ? `- CONSEIL TEMPS DE TRAJET : si la destination est accessible en voiture/train/ferry, le trajet ALLER depuis ${profile.departureCity} ne devrait pas dépasser ${profile.nights === '10+' ? '8h' : '4h'}. Pour les destinations plus lointaines, privilégie l'avion.` : ''}
 
 AMBIANCE & ENVIRONNEMENT :
 - Ambiances souhaitées : ${profile.vibe.join(', ')}. Les destinations DOIVENT correspondre à ces ambiances
@@ -211,6 +212,7 @@ CONTEXTE & GROUPE :
 TRANSPORT & DÉPART :
 - Ville de départ : ${profile.departureCity}. La durée de vol (flightDuration) doit être calculée DEPUIS cette ville
 - Transports acceptés : ${profile.transport.join(', ')}. Ne propose QUE des destinations accessibles avec ces modes de transport
+${profile.transport.some((t: string) => ['car', 'train', 'ferry'].includes(t)) && !profile.transport.includes('plane') ? `- CONTRAINTE TEMPS DE TRAJET (voiture/train/ferry) : le trajet ALLER depuis ${profile.departureCity} ne doit PAS dépasser ${profile.nights === '10+' ? '8h' : '4h'}. C'est une règle STRICTE. Privilégie les destinations proches.` : profile.transport.some((t: string) => ['car', 'train', 'ferry'].includes(t)) && profile.transport.includes('plane') ? `- CONSEIL TEMPS DE TRAJET : si la destination est accessible en voiture/train/ferry, le trajet ALLER depuis ${profile.departureCity} ne devrait pas dépasser ${profile.nights === '10+' ? '8h' : '4h'}. Pour les destinations plus lointaines, privilégie l'avion.` : ''}
 
 AMBIANCE & ENVIRONNEMENT :
 - Ambiances souhaitées : ${profile.vibe.join(', ')}. La destination DOIT correspondre à ces ambiances
