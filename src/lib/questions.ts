@@ -19,19 +19,31 @@ export const Q2_NIGHTS: QuestionConfig = {
   ],
 };
 
-export const Q3_BUDGET: QuestionConfig = {
-  id: 'budget',
-  question: '💰 Budget par personne ?',
-  subtitle: 'Vols + hébergement + activités',
-  field: 'budget',
-  columns: 2,
-  options: [
-    { icon: '💸', label: 'Serré', detail: '< 500€', value: 'tight' },
-    { icon: '👍', label: 'Raisonnable', detail: '500–1 500€', value: 'moderate' },
-    { icon: '✨', label: 'Confort', detail: '1 500–3 000€', value: 'comfort' },
-    { icon: '💎', label: 'Sans limite', detail: '3 000€+', value: 'unlimited' },
-  ],
+const BUDGET_BY_NIGHTS: Record<string, { tight: string; moderate: string; comfort: string; unlimited: string }> = {
+  '2-3': { tight: '< 300€', moderate: '300–600€', comfort: '600–1 200€', unlimited: '1 200€+' },
+  '4-6': { tight: '< 500€', moderate: '500–1 000€', comfort: '1 000–2 000€', unlimited: '2 000€+' },
+  '7':   { tight: '< 700€', moderate: '700–1 500€', comfort: '1 500–3 000€', unlimited: '3 000€+' },
+  '10+': { tight: '< 1 000€', moderate: '1 000–2 000€', comfort: '2 000–4 500€', unlimited: '4 500€+' },
 };
+
+export function getBudgetQuestion(nights: string | null): QuestionConfig {
+  const ranges = BUDGET_BY_NIGHTS[nights || '7'] || BUDGET_BY_NIGHTS['7'];
+  return {
+    id: 'budget',
+    question: '💰 Budget par personne ?',
+    subtitle: 'Vols + hébergement + activités',
+    field: 'budget',
+    columns: 2,
+    options: [
+      { icon: '💸', label: 'Serré', detail: ranges.tight, value: 'tight' },
+      { icon: '👍', label: 'Raisonnable', detail: ranges.moderate, value: 'moderate' },
+      { icon: '✨', label: 'Confort', detail: ranges.comfort, value: 'comfort' },
+      { icon: '💎', label: 'Sans limite', detail: ranges.unlimited, value: 'unlimited' },
+    ],
+  };
+}
+
+export const Q3_BUDGET: QuestionConfig = getBudgetQuestion('7');
 
 export const Q4_TRIP_CONTEXT: QuestionConfig = {
   id: 'tripContext',
@@ -231,6 +243,30 @@ export const Q11_PRIORITY: QuestionConfig = {
   ],
 };
 
+export const Q11B_SPORT_ACTIVITIES: QuestionConfig = {
+  id: 'sportActivities',
+  question: '🏅 Quelles activités sportives ?',
+  subtitle: 'Choisis une ou plusieurs activités',
+  contextBadge: '🤸 Spécifique sport',
+  field: 'sportActivities',
+  multi: true,
+  columns: 2,
+  options: [
+    { icon: '🏄', label: 'Surf', value: 'surf' },
+    { icon: '💨', label: 'Windsurf / wingfoil', value: 'windsurf' },
+    { icon: '🚤', label: 'Sports nautiques', detail: 'Jet-ski, wake…', value: 'watersports' },
+    { icon: '🤿', label: 'Plongée / snorkeling', value: 'diving' },
+    { icon: '🚴', label: 'Vélo route', value: 'cycling' },
+    { icon: '🚵', label: 'VTT', value: 'mtb' },
+    { icon: '🧗', label: 'Escalade / via ferrata', value: 'climbing' },
+    { icon: '🏃', label: 'Trail / running', value: 'trail' },
+    { icon: '🎿', label: 'Ski / snowboard', value: 'ski' },
+    { icon: '🪂', label: 'Parapente', value: 'paragliding' },
+    { icon: '🛩️', label: 'Saut en parachute / ULM', value: 'skydiving' },
+    { icon: '🛶', label: 'Kayak / canoë / rafting', value: 'kayak' },
+  ],
+};
+
 export const Q12_CLIMATE: QuestionConfig = {
   id: 'climate',
   question: '🌤️ Quel climat ?',
@@ -315,7 +351,7 @@ export type StepId =
   | 'month' | 'nights' | 'budget' | 'tripContext' | 'travelStyle'
   | 'group' | 'kidsAges' | 'departureCity' | 'transport'
   | 'vibe' | 'waterTemp' | 'mountainLevel' | 'visited'
-  | 'priority' | 'climate' | 'accommodation' | 'constraints'
+  | 'priority' | 'sportActivities' | 'climate' | 'accommodation' | 'constraints'
   | 'language' | 'stopsCount';
 
 export function buildQueue(profile: TravelProfile): StepId[] {
@@ -347,7 +383,14 @@ export function buildQueue(profile: TravelProfile): StepId[] {
     queue.push('mountainLevel');
   }
 
-  queue.push('visited', 'priority', 'climate', 'accommodation', 'constraints', 'language');
+  queue.push('visited', 'priority');
+
+  // Q11b — sport activities if sport priority selected
+  if (profile.priority.includes('sport')) {
+    queue.push('sportActivities');
+  }
+
+  queue.push('climate', 'accommodation', 'constraints', 'language');
 
   // Q16 — stops count if moving style
   if (profile.travelStyle === 'moving') {

@@ -19,6 +19,7 @@ const initialProfile: TravelProfile = {
   waterTemp: null,
   mountainLevel: [],
   priority: [],
+  sportActivities: [],
   climate: [],
   accommodation: [],
   constraints: [],

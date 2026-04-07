@@ -37,6 +37,9 @@ export interface TravelProfile {
   // Priorités
   priority: ('rest' | 'discover' | 'sport' | 'food' | 'scenery' | 'nightlife')[];
 
+  // Activités sportives (si priority inclut 'sport')
+  sportActivities: ('surf' | 'windsurf' | 'watersports' | 'diving' | 'cycling' | 'mtb' | 'climbing' | 'trail' | 'ski' | 'paragliding' | 'skydiving' | 'kayak')[];
+
   // Climat (multi-select)
   climate: ('hot-dry' | 'tropical' | 'temperate' | 'cold')[];
 

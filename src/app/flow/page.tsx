@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation';
 import { useTravelStore } from '@/lib/store';
 import {
   buildQueue,
-  Q2_NIGHTS, Q3_BUDGET, Q4_TRIP_CONTEXT_FULL, Q5_TRAVEL_STYLE,
+  Q2_NIGHTS, getBudgetQuestion, Q4_TRIP_CONTEXT_FULL, Q5_TRAVEL_STYLE,
   Q6_GROUP, Q6B_KIDS, Q8_TRANSPORT,
   Q9_VIBE, Q9B_WATER_TEMP, Q9C_MOUNTAIN_LEVEL,
-  Q11_PRIORITY, Q12_CLIMATE, Q13_ACCOMMODATION,
+  Q11_PRIORITY, Q11B_SPORT_ACTIVITIES, Q12_CLIMATE, Q13_ACCOMMODATION,
   Q14_CONSTRAINTS, Q15_LANGUAGE, Q16_STOPS,
   type StepId,
 } from '@/lib/questions';
@@ -18,9 +18,8 @@ import MonthPicker from '@/components/flow/MonthPicker';
 import CityPicker from '@/components/flow/CityPicker';
 import VisitedCountries from '@/components/flow/VisitedCountries';
 
-const STEP_CONFIG: Record<string, QuestionConfig> = {
+const STATIC_STEP_CONFIG: Record<string, QuestionConfig> = {
   nights: Q2_NIGHTS,
-  budget: Q3_BUDGET,
   tripContext: Q4_TRIP_CONTEXT_FULL,
   travelStyle: Q5_TRAVEL_STYLE,
   group: Q6_GROUP,
@@ -30,6 +29,7 @@ const STEP_CONFIG: Record<string, QuestionConfig> = {
   waterTemp: Q9B_WATER_TEMP,
   mountainLevel: Q9C_MOUNTAIN_LEVEL,
   priority: Q11_PRIORITY,
+  sportActivities: Q11B_SPORT_ACTIVITIES,
   climate: Q12_CLIMATE,
   accommodation: Q13_ACCOMMODATION,
   constraints: Q14_CONSTRAINTS,
@@ -128,7 +128,10 @@ export default function FlowPage() {
   // Generic QuestionStep
   // =============================================
 
-  const config = STEP_CONFIG[currentStepId];
+  // Budget step uses dynamic config based on selected nights
+  const config = currentStepId === 'budget'
+    ? getBudgetQuestion(profile.nights)
+    : STATIC_STEP_CONFIG[currentStepId];
   if (!config) {
     goNext();
     return null;
