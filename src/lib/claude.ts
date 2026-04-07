@@ -88,6 +88,7 @@ Règles STRICTES :
 - Adapte les suggestions au style de voyage : ${profile.travelStyle === 'moving' ? 'circuit multi-étapes' : 'base fixe'}
 - IMPORTANT : Pense aussi aux territoires d'outre-mer français (Martinique, Guadeloupe, Réunion, Nouvelle-Calédonie, Polynésie, Guyane, Mayotte) comme destinations possibles. Utilise "MQ" pour Martinique, "GP" pour Guadeloupe, "RE" pour Réunion, "NC" pour Nouvelle-Calédonie, "PF" pour Polynésie française, "GF" pour Guyane, "YT" pour Mayotte. Ce ne sont PAS la même chose que la France métropolitaine (FR).
 - Varie les destinations : propose des destinations originales et diversifiées, pas toujours les mêmes classiques
+- IMPORTANT : Si le profil contient des activités sportives (sportActivities), les destinations DOIVENT être adaptées à ces sports. Par exemple : surf → côtes avec vagues, plongée → spots de plongée réputés, ski → stations de ski, VTT → parcours VTT, etc. Mentionne les spots/activités sportives disponibles dans les highlights et matchReasons.
 
 Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks.`;
 
@@ -167,6 +168,7 @@ Règles STRICTES :
 - Adapte les suggestions au style de voyage : ${profile.travelStyle === 'moving' ? 'circuit multi-étapes' : 'base fixe'}
 - IMPORTANT : Pense aussi aux territoires d'outre-mer français (Martinique, Guadeloupe, Réunion, Nouvelle-Calédonie, Polynésie, Guyane, Mayotte) comme destinations possibles. Utilise "MQ" pour Martinique, "GP" pour Guadeloupe, "RE" pour Réunion, "NC" pour Nouvelle-Calédonie, "PF" pour Polynésie française, "GF" pour Guyane, "YT" pour Mayotte. Ce ne sont PAS la même chose que la France métropolitaine (FR).
 - Varie les destinations : propose une destination originale et diversifiée, pas les classiques
+- IMPORTANT : Si le profil contient des activités sportives (sportActivities), la destination DOIT être adaptée à ces sports. Mentionne les spots/activités sportives disponibles dans les highlights et matchReasons.
 
 Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks.`;
 
