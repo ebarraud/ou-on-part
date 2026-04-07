@@ -28,11 +28,29 @@ export default function ResultsPage() {
     setError(null);
 
     generateDestinations(p)
-      .then((dests) => {
+      .then(async (dests) => {
         // Client-side filter: ensure no visited/rejected country slips through
         const filtered = dests.filter(
           (d) => !p.visited.includes(d.countryCode)
         );
+
+        // If filter removed some destinations, generate replacements one by one
+        const missing = 3 - filtered.length;
+        if (missing > 0) {
+          const existingCodes = filtered.map((d) => d.countryCode);
+          for (let i = 0; i < missing; i++) {
+            try {
+              const replacement = await generateOneDestination(p, [...existingCodes]);
+              if (!p.visited.includes(replacement.countryCode)) {
+                filtered.push(replacement);
+                existingCodes.push(replacement.countryCode);
+              }
+            } catch (err) {
+              console.error('Failed to generate replacement destination:', err);
+            }
+          }
+        }
+
         setDestinations(filtered);
       })
       .catch((err) => {

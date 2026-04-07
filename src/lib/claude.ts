@@ -102,7 +102,7 @@ AMBIANCE & ENVIRONNEMENT :
 - Ambiances souhaitées : ${profile.vibe.join(', ')}. Les destinations DOIVENT correspondre à ces ambiances
 ${profile.waterTemp && profile.waterTemp !== 'any' ? '- Température de l\'eau souhaitée : ' + profile.waterTemp + '. Adapte les destinations balnéaires en conséquence' : ''}
 ${profile.mountainLevel.length > 0 ? '- Niveau montagne : ' + profile.mountainLevel.join(', ') + '. Adapte les destinations montagne en conséquence' : ''}
-- Climat souhaité : ${profile.climate.length > 0 ? profile.climate.join(', ') : 'non précisé'}. Les destinations doivent correspondre à ce type de climat pour la période choisie
+- Climat souhaité : ${profile.climate.length > 0 ? profile.climate.join(', ') : 'non précisé'}. Chaque destination doit correspondre à AU MOINS UN de ces climats pour la période choisie. Varie les propositions pour couvrir les différents climats sélectionnés.
 
 PRIORITÉS & ACTIVITÉS :
 - Priorités du voyageur : ${profile.priority.join(', ')}. Le matchScore et les matchReasons doivent refléter ces priorités
@@ -217,7 +217,7 @@ AMBIANCE & ENVIRONNEMENT :
 - Ambiances souhaitées : ${profile.vibe.join(', ')}. La destination DOIT correspondre à ces ambiances
 ${profile.waterTemp && profile.waterTemp !== 'any' ? '- Température de l\'eau souhaitée : ' + profile.waterTemp + '. Adapte la destination balnéaire en conséquence' : ''}
 ${profile.mountainLevel.length > 0 ? '- Niveau montagne : ' + profile.mountainLevel.join(', ') + '. Adapte la destination montagne en conséquence' : ''}
-- Climat souhaité : ${profile.climate.length > 0 ? profile.climate.join(', ') : 'non précisé'}. La destination doit correspondre à ce type de climat pour la période choisie
+- Climat souhaité : ${profile.climate.length > 0 ? profile.climate.join(', ') : 'non précisé'}. La destination doit correspondre à AU MOINS UN de ces climats pour la période choisie
 
 PRIORITÉS & ACTIVITÉS :
 - Priorités du voyageur : ${profile.priority.join(', ')}. Le matchScore et les matchReasons doivent refléter ces priorités
