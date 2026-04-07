@@ -76,19 +76,53 @@ Génère EXACTEMENT 3 destinations en JSON avec cette structure :
   ]
 }
 
-Règles STRICTES :
+Règles STRICTES — TOUS les critères du profil doivent être respectés :
+
+EXCLUSIONS :
 - Les destinations NE DOIVENT PAS être dans la liste des pays déjà visités : ${profile.visited.join(', ')}
-- matchScore entre 70 et 99
-- IMPORTANT : Le budget TOTAL (vol + hébergement + repas + activités) doit RESPECTER le niveau de budget choisi (${profile.budget}). ${budgetInstruction}
-- Le champ budget.min et budget.max = budget TOTAL par personne pour ${profile.nights} nuits, vol inclus
-- Warnings pertinents pour le mois ${profile.month}
-- La première destination doit avoir le meilleur score
+
+PÉRIODE & DURÉE :
+- Mois de voyage : ${profile.month}${profile.monthHalf ? (profile.monthHalf === '1' ? ' (première quinzaine)' : ' (deuxième quinzaine)') : ''} ${profile.year}
+- Durée : ${profile.nights} nuits. Le budget.min et budget.max = budget TOTAL par personne pour cette durée, vol inclus
+- Warnings pertinents pour cette période (météo, saison des pluies, haute saison, etc.)
+
+BUDGET :
+- IMPORTANT : Le budget TOTAL (vol + hébergement + repas + activités) doit RESPECTER le niveau choisi (${profile.budget}). ${budgetInstruction}
+
+CONTEXTE & GROUPE :
+- Type de voyage : ${profile.tripContext || 'non précisé'}. Adapte l'ambiance (ex: honeymoon → romantique, friends → festif, workation → bon wifi)
+- Groupe : ${profile.group || 'non précisé'}${profile.kidsAges.length > 0 ? '. Enfants : ' + profile.kidsAges.join(', ') + ' — destinations adaptées aux familles, sécurité, activités enfants' : ''}
+- Style : ${profile.travelStyle === 'moving' ? 'circuit multi-étapes' : 'base fixe'}
+
+TRANSPORT & DÉPART :
+- Ville de départ : ${profile.departureCity}. La durée de vol (flightDuration) doit être calculée DEPUIS cette ville
+- Transports acceptés : ${profile.transport.join(', ')}. Ne propose QUE des destinations accessibles avec ces modes de transport
+
+AMBIANCE & ENVIRONNEMENT :
+- Ambiances souhaitées : ${profile.vibe.join(', ')}. Les destinations DOIVENT correspondre à ces ambiances
+${profile.waterTemp && profile.waterTemp !== 'any' ? '- Température de l\'eau souhaitée : ' + profile.waterTemp + '. Adapte les destinations balnéaires en conséquence' : ''}
+${profile.mountainLevel.length > 0 ? '- Niveau montagne : ' + profile.mountainLevel.join(', ') + '. Adapte les destinations montagne en conséquence' : ''}
+- Climat souhaité : ${profile.climate.length > 0 ? profile.climate.join(', ') : 'non précisé'}. Les destinations doivent correspondre à ce type de climat pour la période choisie
+
+PRIORITÉS & ACTIVITÉS :
+- Priorités du voyageur : ${profile.priority.join(', ')}. Le matchScore et les matchReasons doivent refléter ces priorités
+${profile.sportActivities.length > 0 ? '- IMPORTANT : Activités sportives : ' + profile.sportActivities.join(', ') + '. Les destinations DOIVENT proposer ces sports. Mentionne les spots dans highlights et matchReasons' : ''}
+
+HÉBERGEMENT :
+- Types souhaités : ${profile.accommodation.length > 0 ? profile.accommodation.join(', ') : 'non précisé'}. Adapte le budget et les suggestions en conséquence
+
+CONTRAINTES :
+${profile.constraints.length > 0 ? '- Contraintes : ' + profile.constraints.join(', ') + '. RESPECTER impérativement (PMR → accessibilité, végétarien → offre locale, noaltitude → pas de haute altitude, noheat → pas de canicule)' : '- Aucune contrainte particulière'}
+
+LANGUE :
+- Préférence langue : ${profile.language || 'any'}${profile.language === 'french' ? '. Privilégie les pays francophones ou DOM-TOM' : profile.language === 'english' ? '. Pays où l\'anglais est largement parlé' : profile.language === 'nearby' ? '. Culture proche de la France, pas trop dépaysant' : ''}
+
+FORMAT :
+- matchScore entre 70 et 99, la première destination doit avoir le meilleur score
 - waterTemp peut être null si pas de mer
 - countryCode = code ISO 2 lettres du pays (ex: "GR", "ES", "TH")
-- Adapte les suggestions au style de voyage : ${profile.travelStyle === 'moving' ? 'circuit multi-étapes' : 'base fixe'}
-- IMPORTANT : Pense aussi aux territoires d'outre-mer français (Martinique, Guadeloupe, Réunion, Nouvelle-Calédonie, Polynésie, Guyane, Mayotte) comme destinations possibles. Utilise "MQ" pour Martinique, "GP" pour Guadeloupe, "RE" pour Réunion, "NC" pour Nouvelle-Calédonie, "PF" pour Polynésie française, "GF" pour Guyane, "YT" pour Mayotte. Ce ne sont PAS la même chose que la France métropolitaine (FR).
+- IMPORTANT : Pense aussi aux territoires d'outre-mer français (Martinique, Guadeloupe, Réunion, Nouvelle-Calédonie, Polynésie, Guyane, Mayotte). Utilise "MQ", "GP", "RE", "NC", "PF", "GF", "YT". Ce ne sont PAS la même chose que la France métropolitaine (FR).
 - Varie les destinations : propose des destinations originales et diversifiées, pas toujours les mêmes classiques
-- IMPORTANT : Si le profil contient des activités sportives (sportActivities), les destinations DOIVENT être adaptées à ces sports. Par exemple : surf → côtes avec vagues, plongée → spots de plongée réputés, ski → stations de ski, VTT → parcours VTT, etc. Mentionne les spots/activités sportives disponibles dans les highlights et matchReasons.
 
 Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks.`;
 
@@ -157,18 +191,53 @@ Génère EXACTEMENT 1 seule destination de remplacement en JSON avec cette struc
   }
 }
 
-Règles STRICTES :
+Règles STRICTES — TOUS les critères du profil doivent être respectés :
+
+EXCLUSIONS :
 - La destination NE DOIT PAS être dans cette liste de pays exclus : ${allExcluded.join(', ')}
+
+PÉRIODE & DURÉE :
+- Mois de voyage : ${profile.month}${profile.monthHalf ? (profile.monthHalf === '1' ? ' (première quinzaine)' : ' (deuxième quinzaine)') : ''} ${profile.year}
+- Durée : ${profile.nights} nuits. Le budget.min et budget.max = budget TOTAL par personne pour cette durée, vol inclus
+- Warnings pertinents pour cette période (météo, saison des pluies, haute saison, etc.)
+
+BUDGET :
+- IMPORTANT : Le budget TOTAL (vol + hébergement + repas + activités) doit RESPECTER le niveau choisi (${profile.budget}). ${budgetInstruction}
+
+CONTEXTE & GROUPE :
+- Type de voyage : ${profile.tripContext || 'non précisé'}. Adapte l'ambiance (ex: honeymoon → romantique, friends → festif, workation → bon wifi)
+- Groupe : ${profile.group || 'non précisé'}${profile.kidsAges.length > 0 ? '. Enfants : ' + profile.kidsAges.join(', ') + ' — destination adaptée aux familles, sécurité, activités enfants' : ''}
+- Style : ${profile.travelStyle === 'moving' ? 'circuit multi-étapes' : 'base fixe'}
+
+TRANSPORT & DÉPART :
+- Ville de départ : ${profile.departureCity}. La durée de vol (flightDuration) doit être calculée DEPUIS cette ville
+- Transports acceptés : ${profile.transport.join(', ')}. Ne propose QUE des destinations accessibles avec ces modes de transport
+
+AMBIANCE & ENVIRONNEMENT :
+- Ambiances souhaitées : ${profile.vibe.join(', ')}. La destination DOIT correspondre à ces ambiances
+${profile.waterTemp && profile.waterTemp !== 'any' ? '- Température de l\'eau souhaitée : ' + profile.waterTemp + '. Adapte la destination balnéaire en conséquence' : ''}
+${profile.mountainLevel.length > 0 ? '- Niveau montagne : ' + profile.mountainLevel.join(', ') + '. Adapte la destination montagne en conséquence' : ''}
+- Climat souhaité : ${profile.climate.length > 0 ? profile.climate.join(', ') : 'non précisé'}. La destination doit correspondre à ce type de climat pour la période choisie
+
+PRIORITÉS & ACTIVITÉS :
+- Priorités du voyageur : ${profile.priority.join(', ')}. Le matchScore et les matchReasons doivent refléter ces priorités
+${profile.sportActivities.length > 0 ? '- IMPORTANT : Activités sportives : ' + profile.sportActivities.join(', ') + '. La destination DOIT proposer ces sports. Mentionne les spots dans highlights et matchReasons' : ''}
+
+HÉBERGEMENT :
+- Types souhaités : ${profile.accommodation.length > 0 ? profile.accommodation.join(', ') : 'non précisé'}. Adapte le budget et les suggestions en conséquence
+
+CONTRAINTES :
+${profile.constraints.length > 0 ? '- Contraintes : ' + profile.constraints.join(', ') + '. RESPECTER impérativement (PMR → accessibilité, végétarien → offre locale, noaltitude → pas de haute altitude, noheat → pas de canicule)' : '- Aucune contrainte particulière'}
+
+LANGUE :
+- Préférence langue : ${profile.language || 'any'}${profile.language === 'french' ? '. Privilégie les pays francophones ou DOM-TOM' : profile.language === 'english' ? '. Pays où l\'anglais est largement parlé' : profile.language === 'nearby' ? '. Culture proche de la France, pas trop dépaysant' : ''}
+
+FORMAT :
 - matchScore entre 70 et 99
-- IMPORTANT : Le budget TOTAL (vol + hébergement + repas + activités) doit RESPECTER le niveau de budget choisi (${profile.budget}). ${budgetInstruction}
-- Le champ budget.min et budget.max = budget TOTAL par personne pour ${profile.nights} nuits, vol inclus
-- Warnings pertinents pour le mois ${profile.month}
 - waterTemp peut être null si pas de mer
 - countryCode = code ISO 2 lettres du pays (ex: "GR", "ES", "TH")
-- Adapte les suggestions au style de voyage : ${profile.travelStyle === 'moving' ? 'circuit multi-étapes' : 'base fixe'}
-- IMPORTANT : Pense aussi aux territoires d'outre-mer français (Martinique, Guadeloupe, Réunion, Nouvelle-Calédonie, Polynésie, Guyane, Mayotte) comme destinations possibles. Utilise "MQ" pour Martinique, "GP" pour Guadeloupe, "RE" pour Réunion, "NC" pour Nouvelle-Calédonie, "PF" pour Polynésie française, "GF" pour Guyane, "YT" pour Mayotte. Ce ne sont PAS la même chose que la France métropolitaine (FR).
-- Varie les destinations : propose une destination originale et diversifiée, pas les classiques
-- IMPORTANT : Si le profil contient des activités sportives (sportActivities), la destination DOIT être adaptée à ces sports. Mentionne les spots/activités sportives disponibles dans les highlights et matchReasons.
+- IMPORTANT : Pense aussi aux territoires d'outre-mer français. Utilise "MQ", "GP", "RE", "NC", "PF", "GF", "YT". Ce ne sont PAS la même chose que la France métropolitaine (FR).
+- Varie : propose une destination originale et diversifiée, pas les classiques
 
 Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks.`;
 
