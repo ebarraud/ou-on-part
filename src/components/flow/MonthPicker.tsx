@@ -29,10 +29,10 @@ export default function MonthPicker({
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
 
-  // Generate 12 months starting from next month
+  // Generate 12 months starting from current month
   const months = Array.from({ length: 12 }, (_, i) => {
-    const idx = (currentMonth + 1 + i) % 12;
-    const year = currentYear + (currentMonth + 1 + i >= 12 ? 1 : 0);
+    const idx = (currentMonth + i) % 12;
+    const year = currentYear + (currentMonth + i >= 12 ? 1 : 0);
     return { idx, year };
   });
 
