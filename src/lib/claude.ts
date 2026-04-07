@@ -101,12 +101,11 @@ TRANSPORT & DÉPART :
 AMBIANCE & ENVIRONNEMENT :
 - Ambiances souhaitées : ${profile.vibe.join(', ')}. Les destinations DOIVENT correspondre à ces ambiances
 ${profile.waterTemp && profile.waterTemp !== 'any' ? '- Température de l\'eau souhaitée : ' + profile.waterTemp + '. Adapte les destinations balnéaires en conséquence' : ''}
-${profile.mountainLevel.length > 0 ? '- Niveau montagne : ' + profile.mountainLevel.join(', ') + '. Adapte les destinations montagne en conséquence' : ''}
 - Climat souhaité : ${profile.climate.length > 0 ? profile.climate.join(', ') : 'non précisé'}. Chaque destination doit correspondre à AU MOINS UN de ces climats pour la période choisie. Varie les propositions pour couvrir les différents climats sélectionnés.
 
 PRIORITÉS & ACTIVITÉS :
 - Priorités du voyageur : ${profile.priority.join(', ')}. Le matchScore et les matchReasons doivent refléter ces priorités
-${profile.sportActivities.length > 0 ? '- IMPORTANT : Activités sportives : ' + profile.sportActivities.join(', ') + '. Les destinations DOIVENT proposer ces sports. Mentionne les spots dans highlights et matchReasons' : ''}
+${profile.sportActivities.length > 0 ? '- IMPORTANT : Activités sportives : ' + profile.sportActivities.join(', ') + '. Les destinations DOIVENT proposer ces activités. Mentionne les spots dans highlights et matchReasons. (mountain_walk = balades tranquilles en montagne, hiking = randonnée en montagne/nature, climbing = escalade/via ferrata, trail = trail/running, ski = ski/snowboard, mtb = VTT, cycling = vélo route, surf = surf, windsurf = windsurf/wingfoil, watersports = sports nautiques, diving = plongée/snorkeling, paragliding = parapente, skydiving = parachute/ULM, kayak = kayak/canoë/rafting)' : ''}
 
 HÉBERGEMENT :
 - Types souhaités : ${profile.accommodation.length > 0 ? profile.accommodation.join(', ') : 'non précisé'}. Adapte le budget et les suggestions en conséquence
@@ -216,12 +215,11 @@ TRANSPORT & DÉPART :
 AMBIANCE & ENVIRONNEMENT :
 - Ambiances souhaitées : ${profile.vibe.join(', ')}. La destination DOIT correspondre à ces ambiances
 ${profile.waterTemp && profile.waterTemp !== 'any' ? '- Température de l\'eau souhaitée : ' + profile.waterTemp + '. Adapte la destination balnéaire en conséquence' : ''}
-${profile.mountainLevel.length > 0 ? '- Niveau montagne : ' + profile.mountainLevel.join(', ') + '. Adapte la destination montagne en conséquence' : ''}
 - Climat souhaité : ${profile.climate.length > 0 ? profile.climate.join(', ') : 'non précisé'}. La destination doit correspondre à AU MOINS UN de ces climats pour la période choisie
 
 PRIORITÉS & ACTIVITÉS :
 - Priorités du voyageur : ${profile.priority.join(', ')}. Le matchScore et les matchReasons doivent refléter ces priorités
-${profile.sportActivities.length > 0 ? '- IMPORTANT : Activités sportives : ' + profile.sportActivities.join(', ') + '. La destination DOIT proposer ces sports. Mentionne les spots dans highlights et matchReasons' : ''}
+${profile.sportActivities.length > 0 ? '- IMPORTANT : Activités sportives : ' + profile.sportActivities.join(', ') + '. La destination DOIT proposer ces activités. Mentionne les spots dans highlights et matchReasons. (mountain_walk = balades tranquilles en montagne, hiking = randonnée en montagne/nature, climbing = escalade/via ferrata, trail = trail/running, ski = ski/snowboard, mtb = VTT, cycling = vélo route, surf = surf, windsurf = windsurf/wingfoil, watersports = sports nautiques, diving = plongée/snorkeling, paragliding = parapente, skydiving = parachute/ULM, kayak = kayak/canoë/rafting)' : ''}
 
 HÉBERGEMENT :
 - Types souhaités : ${profile.accommodation.length > 0 ? profile.accommodation.join(', ') : 'non précisé'}. Adapte le budget et les suggestions en conséquence

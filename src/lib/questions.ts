@@ -258,6 +258,8 @@ export const Q11B_SPORT_ACTIVITIES: QuestionConfig = {
     { icon: '🤿', label: 'Plongée / snorkeling', value: 'diving' },
     { icon: '🚴', label: 'Vélo route', value: 'cycling' },
     { icon: '🚵', label: 'VTT', value: 'mtb' },
+    { icon: '🚶', label: 'Balade en montagne', value: 'mountain_walk' },
+    { icon: '🥾', label: 'Randonnée', value: 'hiking' },
     { icon: '🧗', label: 'Escalade / via ferrata', value: 'climbing' },
     { icon: '🏃', label: 'Trail / running', value: 'trail' },
     { icon: '🎿', label: 'Ski / snowboard', value: 'ski' },
@@ -350,7 +352,7 @@ export const Q16_STOPS: QuestionConfig = {
 export type StepId =
   | 'month' | 'nights' | 'budget' | 'tripContext' | 'travelStyle'
   | 'group' | 'kidsAges' | 'departureCity' | 'transport'
-  | 'vibe' | 'waterTemp' | 'mountainLevel' | 'visited'
+  | 'vibe' | 'waterTemp' | 'visited'
   | 'priority' | 'sportActivities' | 'climate' | 'accommodation' | 'constraints'
   | 'language' | 'stopsCount';
 
@@ -376,11 +378,6 @@ export function buildQueue(profile: TravelProfile): StepId[] {
   // Q9b — water temp if sea selected
   if (profile.vibe.includes('sea')) {
     queue.push('waterTemp');
-  }
-
-  // Q9c — mountain level if mountain selected
-  if (profile.vibe.includes('mountain')) {
-    queue.push('mountainLevel');
   }
 
   queue.push('visited', 'priority');
