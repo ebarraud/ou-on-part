@@ -9,6 +9,9 @@ export interface TravelProfile {
   monthHalf: '1' | '2' | null; // 1 = première quinzaine, 2 = deuxième quinzaine
   year: number;
   nights: '2-3' | '4-6' | '7' | '10+' | null;
+  // Dates précises (optionnel) — YYYY-MM-DD. Si présentes, priment sur mois/quinzaine/nuits.
+  startDate?: string;
+  endDate?: string;
 
   // Budget
   budget: 'tight' | 'moderate' | 'comfort' | 'unlimited' | null;

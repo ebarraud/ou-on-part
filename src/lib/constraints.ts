@@ -1,6 +1,7 @@
 import type { TravelProfile, Destination } from './types';
 import { BUDGET_MAX_BY_NIGHTS } from './questions';
-import { getBudgetMultiplier, getDisplayedBudget } from './budget';
+import { getBudgetMultiplier, getDisplayedBudget, isHolidayPeak } from './budget';
+import { formatRange, getNightsCount, hasExactDates } from './dates';
 
 // =============================================
 // Contraintes éliminatoires — vérifiées par le code,
@@ -131,10 +132,15 @@ const NIGHTS_LABEL: Record<string, string> = {
 
 export function describeCriteria(profile: TravelProfile): string {
   const parts: string[] = [];
-  parts.push(`Pour ${NIGHTS_LABEL[profile.nights || '7'] || 'ton séjour'}`);
-  if (profile.month) {
-    const half = profile.monthHalf === '1' ? 'début ' : profile.monthHalf === '2' ? 'fin ' : 'en ';
-    parts.push(`${half}${profile.month.toLowerCase()}`);
+  if (hasExactDates(profile)) {
+    parts.push(`Pour ${getNightsCount(profile)} nuits ${formatRange(profile.startDate, profile.endDate)}`);
+  } else {
+    parts.push(`Pour ${NIGHTS_LABEL[profile.nights || '7'] || 'ton séjour'}`);
+  }
+  if (profile.month && !hasExactDates(profile)) {
+    // Le libellé du MonthPicker contient déjà la quinzaine : « fin décembre 2026 »
+    const label = profile.month.toLowerCase();
+    parts.push(/^(début|fin|en|du) /.test(label) ? label : `en ${label}`);
   }
   const limits: string[] = [];
   const cap = getBudgetCap(profile);
@@ -165,7 +171,7 @@ export function buildRelaxSuggestions(profile: TravelProfile, rejections: Reject
     }
   }
 
-  if (profile.monthIndex === 11 && profile.monthHalf === '2') {
+  if (isHolidayPeak(profile)) {
     suggestions.push('décaler après les fêtes (les prix baissent dès début janvier)');
   }
 

@@ -13,6 +13,7 @@ import {
   type StepId,
 } from '@/lib/questions';
 import type { TravelProfile, QuestionConfig } from '@/lib/types';
+import { profileFieldsFromDates } from '@/lib/dates';
 import QuestionStep from '@/components/flow/QuestionStep';
 import MonthPicker from '@/components/flow/MonthPicker';
 import CityPicker from '@/components/flow/CityPicker';
@@ -79,12 +80,23 @@ export default function FlowPage() {
     return (
       <MonthPicker
         onSelect={(month, monthIndex, year, monthHalf) => {
+          setField('startDate', undefined);
+          setField('endDate', undefined);
           setField('month', month);
           setField('monthIndex', monthIndex);
           setField('year', year);
           setField('monthHalf', monthHalf);
           goNext();
         }}
+        onSelectDates={(start, end) => {
+          const fields = profileFieldsFromDates(start, end);
+          (Object.keys(fields) as (keyof TravelProfile)[]).forEach((k) =>
+            setField(k, fields[k] as never)
+          );
+          goNext();
+        }}
+        initialStart={profile.startDate}
+        initialEnd={profile.endDate}
         onBack={goBack}
         stepNumber={currentStep + 1}
         totalSteps={totalSteps}

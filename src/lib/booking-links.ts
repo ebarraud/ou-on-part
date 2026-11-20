@@ -3,6 +3,9 @@ import { getOriginIata } from './airports';
 
 // Estimate check-in / check-out dates from profile
 function getDates(profile: TravelProfile): { checkin: string; checkout: string } {
+  if (profile.startDate && profile.endDate) {
+    return { checkin: profile.startDate, checkout: profile.endDate };
+  }
   const now = new Date();
   // Target: 15th of the selected month (default mid-month)
   const year = profile.year || now.getFullYear();

@@ -1,8 +1,10 @@
 import type { TravelProfile, Destination } from './types';
+import { hasExactDates, overlapsHolidays } from './dates';
 
 // Période des fêtes (22 déc. – 4 janv.) : la semaine la plus chère de l'année,
 // surtout en long-courrier.
 export function isHolidayPeak(profile: TravelProfile): boolean {
+  if (hasExactDates(profile)) return overlapsHolidays(profile.startDate, profile.endDate);
   // Décembre 2e quinzaine = départ entre le 16 et le 31 → chevauche le 22/12–04/01
   return profile.monthIndex === 11 && profile.monthHalf === '2';
 }

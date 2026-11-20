@@ -1,6 +1,7 @@
 import type { TravelProfile, Destination, Itinerary, Route } from './types';
 import { useTravelStore } from './store';
 import { getOriginIata } from './airports';
+import { formatRange, getNightsCount, hasExactDates } from './dates';
 import { getBudgetMultiplier, isHolidayPeak } from './budget';
 import {
   checkDestination,
@@ -67,11 +68,14 @@ function buildDestinationsPrompt(
   const baseCap = getBaseBudgetCap(profile);
   const budgetMultiplier = getBudgetMultiplier(profile);
   const maxHours = getMaxTravelHours(profile);
-  const period = `${profile.month}${profile.monthHalf ? (profile.monthHalf === '1' ? ' (première quinzaine)' : ' (deuxième quinzaine)') : ''} ${profile.year}`;
+  const period = hasExactDates(profile)
+    ? `DATES PRÉCISES ${formatRange(profile.startDate, profile.endDate)}`
+    : `${profile.month}${profile.monthHalf ? (profile.monthHalf === '1' ? ' (première quinzaine)' : ' (deuxième quinzaine)') : ''} ${profile.year}`;
+  const nightsLabel = hasExactDates(profile) ? String(getNightsCount(profile)) : profile.nights;
   const plural = count > 1;
 
   const budgetRule = isFinite(budgetCap)
-    ? `- BUDGET MAX : ${budgetCap}€ par personne TOUT COMPRIS (vol aller-retour + hébergement + repas + activités) pour ${profile.nights} nuits.
+    ? `- BUDGET MAX : ${budgetCap}€ par personne TOUT COMPRIS (vol aller-retour + hébergement + repas + activités) pour ${nightsLabel} nuits.
   L'application applique ensuite elle-même une majoration de ×${budgetMultiplier.toFixed(2)} (saison${isHolidayPeak(profile) ? ' — période des fêtes, la plus chère de l\'année' : ''}, groupe, type d'hébergement).
   Donc budget.min et budget.max doivent être des prix de base, et budget.min doit être ≤ ${baseCap}€. Sois réaliste sur le prix du vol à cette période : si le vol seul dépasse ce montant, la destination est exclue.`
     : `- BUDGET : pas de plafond. Donne budget.min et budget.max en prix de base (l'application applique la majoration saisonnière).`;
@@ -130,7 +134,7 @@ Chaque destination est vérifiée automatiquement après ta réponse. Une seule 
 ${budgetRule}
 ${travelRule}
 - TRANSPORTS ACCEPTÉS : ${profile.transport.join(', ')}. Ne propose QUE des destinations accessibles avec ces modes depuis ${profile.departureCity}
-- PÉRIODE : ${period}, ${profile.nights} nuits
+- PÉRIODE : ${period}, ${nightsLabel} nuits
 ${profile.constraints.length > 0 ? '- CONTRAINTES PERSONNELLES : ' + profile.constraints.join(', ') + ' (PMR → accessibilité, végétarien → offre locale, halal → offre locale, glutenfree → offre locale, noaltitude → pas au-dessus de 2 000 m, noheat → pas de chaleur au-dessus de 35°C à cette période)' : ''}
 ${profile.group === 'family' && profile.kidsAges.length > 0 ? '- ENFANTS : ' + profile.kidsAges.join(', ') + ' — destinations sûres et adaptées aux familles' : ''}
 ${rejectedBlock}
@@ -201,7 +205,12 @@ async function attachFlightPrices(profile: TravelProfile, batch: Destination[]):
       if (!/^[A-Z]{3}$/.test(dest) || dest === origin) return;
       try {
         const qs = new URLSearchParams({ origin, destination: dest, month, nights: profile.nights || '7' });
-        if (profile.monthHalf) qs.set('half', profile.monthHalf);
+        if (hasExactDates(profile)) {
+          qs.set('depart', profile.startDate);
+          qs.set('return', profile.endDate);
+        } else if (profile.monthHalf) {
+          qs.set('half', profile.monthHalf);
+        }
         if (isFinite(maxHours)) qs.set('maxHours', String(maxHours));
         const res = await fetch(`/api/flight-prices?${qs}`);
         if (!res.ok) return;
@@ -289,8 +298,8 @@ export async function generateItinerary(
 ): Promise<Itinerary> {
   const prompt = `Tu es un expert voyagiste francophone. Crée un itinéraire détaillé pour :
 - Destination : ${destination.city}, ${destination.country}
-- Mois : ${profile.month}
-- Durée : ${profile.nights} nuits
+- Période : ${profile.month}
+- Durée : ${getNightsCount(profile)} nuits
 - Profil complet : ${JSON.stringify(profile, null, 2)}
 
 Format JSON strict :
@@ -313,7 +322,7 @@ Format JSON strict :
 }
 
 Règles :
-- Génère exactement le bon nombre de jours selon la durée (${profile.nights} nuits = ${profile.nights === '2-3' ? '3' : profile.nights === '4-6' ? '5' : profile.nights === '7' ? '7' : '10'} jours)
+- Génère exactement ${getNightsCount(profile)} jours${hasExactDates(profile) ? ` (du ${profile.startDate} au ${profile.endDate}, utilise ces vraies dates dans le champ date)` : ''}
 - Adapte les activités au profil (${profile.priority.join(', ')})
 - Tiens compte des contraintes : ${profile.constraints.join(', ') || 'aucune'}
 - Budget journalier réaliste
@@ -340,8 +349,8 @@ export async function generateRoute(
 ): Promise<Route> {
   const prompt = `Tu es un expert voyagiste francophone. Crée un circuit multi-étapes pour :
 - Région de départ : ${destination.city}, ${destination.country}
-- Mois : ${profile.month}
-- Durée : ${profile.nights} nuits
+- Période : ${profile.month}
+- Durée : ${getNightsCount(profile)} nuits
 - Nombre d'étapes : ${profile.stopsCount || 3}
 - Transport : ${profile.transport.join(', ')}
 - Profil : ${JSON.stringify(profile, null, 2)}

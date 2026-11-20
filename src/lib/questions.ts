@@ -382,14 +382,19 @@ export type StepId =
   | 'language' | 'stopsCount';
 
 export function buildQueue(profile: TravelProfile): StepId[] {
-  const queue: StepId[] = [
-    'month',
-    'nights',
+  const queue: StepId[] = ['month'];
+
+  // Avec des dates précises, le nombre de nuits est déjà connu
+  if (!(profile.startDate && profile.endDate)) {
+    queue.push('nights');
+  }
+
+  queue.push(
     'budget',
     'tripContext',
     'travelStyle',
     'group',
-  ];
+  );
 
   // Q6b — kids ages if family
   if (profile.group === 'family') {
