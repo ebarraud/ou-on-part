@@ -28,6 +28,9 @@ export interface TravelProfile {
   departureCity: string;
   departureLat?: number;
   departureLng?: number;
+  departureAirport?: string; // IATA de l'aéroport le plus proche (commune saisie)
+  departureAirportName?: string;
+  departureAirportKm?: number;
   transport: ('plane' | 'train' | 'car' | 'ferry')[];
   // Distance de vol acceptée (multi) — vide = limite par défaut selon la durée du séjour
   flightRange?: ('short' | 'medium' | 'long')[];

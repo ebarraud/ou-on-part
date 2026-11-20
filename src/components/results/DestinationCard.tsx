@@ -12,6 +12,7 @@ interface DestinationCardProps {
   onSelect: () => void;
   onReject?: (countryCode: string) => void;
   departureCity?: string;
+  distanceFrom?: string;
   nights?: string;
   hasCarTransport?: boolean;
 }
@@ -23,6 +24,7 @@ export default function DestinationCard({
   onSelect,
   onReject,
   departureCity,
+  distanceFrom,
   nights,
   hasCarTransport,
 }: DestinationCardProps) {
@@ -30,7 +32,7 @@ export default function DestinationCard({
 
   // Car cost line (only if user selected car as transport)
   const carLine = hasCarTransport && departureCity && nights
-    ? getCarCostLine(departureCity, d.city, d.countryCode || '', nights)
+    ? getCarCostLine(departureCity, d.city, d.countryCode || '', nights, distanceFrom)
     : null;
 
   return (

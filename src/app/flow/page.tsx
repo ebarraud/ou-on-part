@@ -108,8 +108,13 @@ export default function FlowPage() {
   if (currentStepId === 'departureCity') {
     return (
       <CityPicker
-        onSelect={(city) => {
+        onSelect={(city, details) => {
           setField('departureCity', city);
+          setField('departureLat', details?.lat);
+          setField('departureLng', details?.lng);
+          setField('departureAirport', details?.airport.iata);
+          setField('departureAirportName', details?.airport.name);
+          setField('departureAirportKm', details?.airport.km);
           goNext();
         }}
         onBack={goBack}

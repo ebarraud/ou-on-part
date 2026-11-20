@@ -1,6 +1,6 @@
 import type { TravelProfile, Destination, Itinerary, Route } from './types';
 import { useTravelStore } from './store';
-import { getOriginIata } from './airports';
+import { getDepartureIata } from './airports';
 import { formatRange, getNightsCount, hasExactDates } from './dates';
 import { getBudgetMultiplier, isHolidayPeak } from './budget';
 import {
@@ -134,6 +134,7 @@ Chaque destination est vérifiée automatiquement après ta réponse. Une seule 
 ${budgetRule}
 ${travelRule}
 - TRANSPORTS ACCEPTÉS : ${profile.transport.join(', ')}. Ne propose QUE des destinations accessibles avec ces modes depuis ${profile.departureCity}
+${profile.departureAirport && profile.departureAirportName && profile.departureAirportName !== profile.departureCity ? `- DÉPART EN AVION : depuis l'aéroport de ${profile.departureAirportName} (${profile.departureAirport}), à environ ${profile.departureAirportKm ?? '?'} km de ${profile.departureCity}. Calcule les durées de vol depuis cet aéroport.` : ''}
 - PÉRIODE : ${period}, ${nightsLabel} nuits
 ${profile.constraints.length > 0 ? '- CONTRAINTES PERSONNELLES : ' + profile.constraints.join(', ') + ' (PMR → accessibilité, végétarien → offre locale, halal → offre locale, glutenfree → offre locale, noaltitude → pas au-dessus de 2 000 m, noheat → pas de chaleur au-dessus de 35°C à cette période)' : ''}
 ${profile.group === 'family' && profile.kidsAges.length > 0 ? '- ENFANTS : ' + profile.kidsAges.join(', ') + ' — destinations sûres et adaptées aux familles' : ''}
@@ -194,7 +195,7 @@ function applyRealFlight(d: Destination): void {
 // Prix réels des vols (Travelpayouts) — en cas d'échec on garde l'estimation de Claude
 async function attachFlightPrices(profile: TravelProfile, batch: Destination[]): Promise<void> {
   if (!profile.transport.includes('plane')) return;
-  const origin = getOriginIata(profile.departureCity);
+  const origin = getDepartureIata(profile);
   if (!origin || profile.monthIndex < 0 || !profile.year) return;
   const month = `${profile.year}-${String(profile.monthIndex + 1).padStart(2, '0')}`;
   const maxHours = getMaxTravelHours(profile);

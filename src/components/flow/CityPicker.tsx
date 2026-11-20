@@ -1,9 +1,24 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { nearestAirport, type NearestAirport } from '@/lib/airports';
+
+export interface CityDetails {
+  lat: number;
+  lng: number;
+  airport: NearestAirport;
+}
+
+interface Commune {
+  nom: string;
+  code: string;
+  codesPostaux?: string[];
+  departement?: { code: string; nom: string };
+  centre?: { coordinates: [number, number] }; // [lng, lat]
+}
 
 interface CityPickerProps {
-  onSelect: (city: string) => void;
+  onSelect: (city: string, details?: CityDetails) => void;
   onBack?: () => void;
   stepNumber: number;
   totalSteps: number;
@@ -30,6 +45,44 @@ export default function CityPicker({
 }: CityPickerProps) {
   const [customMode, setCustomMode] = useState(false);
   const [customCity, setCustomCity] = useState('');
+  const [results, setResults] = useState<Commune[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState(false);
+  const requestId = useRef(0);
+
+  // Recherche des communes françaises (API officielle geo.api.gouv.fr)
+  useEffect(() => {
+    const term = customCity.trim();
+    if (term.length < 2) {
+      setResults([]);
+      setSearching(false);
+      return;
+    }
+    const id = ++requestId.current;
+    setSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const url = `https://geo.api.gouv.fr/communes?nom=${encodeURIComponent(term)}&fields=nom,codesPostaux,centre,departement&boost=population&limit=8`;
+        const res = await fetch(url);
+        const data: Commune[] = res.ok ? await res.json() : [];
+        if (id !== requestId.current) return;
+        setResults(data.filter((c) => c.centre?.coordinates));
+        setSearchError(!res.ok);
+      } catch {
+        if (id !== requestId.current) return;
+        setResults([]);
+        setSearchError(true);
+      } finally {
+        if (id === requestId.current) setSearching(false);
+      }
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [customCity]);
+
+  const pickCommune = (c: Commune) => {
+    const [lng, lat] = c.centre!.coordinates;
+    onSelect(c.nom, { lat, lng, airport: nearestAirport(lat, lng) });
+  };
 
   return (
     <div className="flex flex-col min-h-screen px-4 pb-8">
@@ -91,26 +144,57 @@ export default function CityPicker({
           </button>
         </>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           <input
             type="text"
             value={customCity}
             onChange={(e) => setCustomCity(e.target.value)}
-            placeholder="Tape le nom de ta ville"
+            placeholder="Commence à taper le nom de ta commune"
             className="w-full rounded-btn border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             autoFocus
+            autoComplete="off"
           />
-          <button
-            onClick={() => customCity.trim() && onSelect(customCity.trim())}
-            disabled={!customCity.trim()}
-            className={`w-full py-3.5 rounded-btn font-semibold text-base transition-all
-              ${customCity.trim()
-                ? 'bg-primary text-white hover:bg-primary-dark active:scale-[0.98]'
-                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              }`}
-          >
-            Valider
-          </button>
+
+          {results.length > 0 && (
+            <ul className="rounded-btn border border-gray-200 bg-white divide-y divide-gray-100 overflow-hidden">
+              {results.map((c) => {
+                const [lng, lat] = c.centre!.coordinates;
+                const airport = nearestAirport(lat, lng);
+                return (
+                  <li key={c.code}>
+                    <button
+                      onClick={() => pickCommune(c)}
+                      className="w-full text-left px-4 py-3 hover:bg-primary-light active:bg-primary-light transition-colors"
+                    >
+                      <span className="block text-sm font-semibold text-gray-900">
+                        {c.nom}
+                        <span className="font-normal text-gray-400">
+                          {' '}
+                          · {c.codesPostaux?.[0] || c.departement?.code}
+                          {c.departement?.nom ? ` · ${c.departement.nom}` : ''}
+                        </span>
+                      </span>
+                      <span className="block text-xs text-gray-500 mt-0.5">
+                        ✈️ Aéroport le plus proche : {airport.name} ({airport.km} km)
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          <p className="text-xs text-gray-400 text-center min-h-[1rem]">
+            {customCity.trim().length < 2
+              ? 'Tape au moins 2 lettres, puis choisis ta commune dans la liste'
+              : searching
+                ? 'Recherche…'
+                : searchError
+                  ? 'Recherche indisponible, réessaie dans un instant'
+                  : results.length === 0
+                    ? 'Aucune commune trouvée — vérifie l\'orthographe'
+                    : 'Touche ta commune pour la valider'}
+          </p>
         </div>
       )}
     </div>

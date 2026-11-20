@@ -1,5 +1,5 @@
 import type { TravelProfile, Destination } from './types';
-import { getOriginIata } from './airports';
+import { getDepartureIata } from './airports';
 
 // Estimate check-in / check-out dates from profile
 function getDates(profile: TravelProfile): { checkin: string; checkout: string } {
@@ -44,7 +44,7 @@ export function getSkyscannerLink(profile: TravelProfile, dest: Destination): st
   const { checkin, checkout } = getDates(profile);
   // Skyscanner attend des codes IATA (ex : /transport/vols/par/tci/261220/261227/),
   // pas des noms de ville — sinon 404.
-  const from = (getOriginIata(profile.departureCity) || 'fr').toLowerCase();
+  const from = (getDepartureIata(profile) || 'fr').toLowerCase();
   const to = (
     /^[A-Za-z]{3}$/.test(dest.airportCode || '') ? dest.airportCode! : dest.countryCode || ''
   ).toLowerCase();

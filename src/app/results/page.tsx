@@ -215,6 +215,7 @@ export default function ResultsPage() {
                 onSelect={() => handleSelect(dest)}
                 onReject={replacingIndex !== null ? undefined : handleReject}
                 departureCity={profile.departureCity}
+                distanceFrom={profile.departureAirportName}
                 nights={profile.nights || undefined}
                 hasCarTransport={profile.transport.includes('car')}
               />
@@ -251,6 +252,7 @@ export default function ResultsPage() {
               rank={(i + 1) as 1 | 2 | 3}
               onSelect={() => handleSelect(dest)}
               departureCity={profile.departureCity}
+                distanceFrom={profile.departureAirportName}
               nights={profile.nights || undefined}
               hasCarTransport={profile.transport.includes('car')}
             />

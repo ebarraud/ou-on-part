@@ -120,9 +120,10 @@ export function calculateCarCost(
   departure: string,
   destinationCity: string,
   countryCode: string,
-  nights: string
+  nights: string,
+  distanceFrom?: string // grande ville proche, pour les communes absentes de la table
 ): CarCostEstimate {
-  const distance = getDistance(departure, destinationCity, countryCode);
+  const distance = getDistance(distanceFrom || departure, destinationCity, countryCode);
   const fuel = Math.round(distance * 2 * 0.07 * 1.75);       // 7L/100km, 1.75€/L, aller-retour
   const tolls = Math.round(distance * 2 * 0.06);               // ~6cts/km, aller-retour
   const nightsNum = nights === '10+' ? 10 : nights === '2-3' ? 3 : nights === '4-6' ? 5 : parseInt(nights) || 7;
@@ -137,7 +138,8 @@ export function getCarCostLine(
   departure: string,
   destinationCity: string,
   countryCode: string,
-  nights: string
+  nights: string,
+  distanceFrom?: string
 ): { text: string; detail: string; available: boolean } {
   if (!isDriveable(countryCode)) {
     return {
@@ -147,7 +149,7 @@ export function getCarCostLine(
     };
   }
 
-  const cost = calculateCarCost(departure, destinationCity, countryCode, nights);
+  const cost = calculateCarCost(departure, destinationCity, countryCode, nights, distanceFrom);
   return {
     text: `🚗 En voiture depuis ${departure} : ~${cost.totalRounded}€ aller-retour`,
     detail: `⛽ ${cost.fuel}€ carburant + 🛣️ ${cost.tolls}€ péages + 🅿️ ${cost.parking}€ parking`,
