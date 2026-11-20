@@ -65,10 +65,16 @@ export default function DestinationCard({
         {d.flightPrice && (
           <div className="text-xs text-emerald-700 mb-1">
             ✈️ Vol A/R dès {d.flightPrice.price.toLocaleString('fr-FR')}€ · prix constaté{d.flightPrice.approx ? ' (dates proches)' : ''}
+            {!d.flightPrice.withinLimit && d.flightPrice.durationTo ? (
+              <span className="text-amber-700">
+                {' '}— ce vol fait {Math.floor(d.flightPrice.durationTo / 60)}h{String(d.flightPrice.durationTo % 60).padStart(2, '0')}
+                {d.flightPrice.transfers ? ` avec ${d.flightPrice.transfers} escale${d.flightPrice.transfers > 1 ? 's' : ''}` : ''}
+              </span>
+            ) : null}
           </div>
         )}
         <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
-          <span>✈️ {d.flightDuration}</span>
+          <span>✈️ {d.flightDuration}{d.flightType && d.flightType !== 'direct' && /escale/.test(d.flightType) ? ` · ${d.flightType}` : ''}</span>
           <span>☀️ {d.airTemp}°C</span>
           {d.waterTemp && <span>🌊 {d.waterTemp}°C</span>}
         </div>

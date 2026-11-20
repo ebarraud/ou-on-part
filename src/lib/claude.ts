@@ -173,12 +173,27 @@ async function requestDestinations(
   throw new Error('Aucune destination dans la réponse de Claude');
 }
 
+// Quand le vol réel respecte la limite, sa durée et ses escales remplacent celles
+// annoncées par Claude (qui peut dire « 4h15 direct » pour un vol à 6h35 avec escale).
+function applyRealFlight(d: Destination): void {
+  const fp = d.flightPrice;
+  if (!fp || !fp.withinLimit || !fp.durationTo) return;
+  const transfers = fp.transfers ?? 0;
+  d.travelHours = fp.durationTo / 60;
+  d.flightDuration = formatHours(d.travelHours);
+  d.flightType = transfers === 0 ? 'direct' : `${transfers} escale${transfers > 1 ? 's' : ''}`;
+  if (transfers > 0) {
+    d.pills = (d.pills || []).filter((p) => !/vol direct|direct flight/i.test(p));
+  }
+}
+
 // Prix réels des vols (Travelpayouts) — en cas d'échec on garde l'estimation de Claude
 async function attachFlightPrices(profile: TravelProfile, batch: Destination[]): Promise<void> {
   if (!profile.transport.includes('plane')) return;
   const origin = getOriginIata(profile.departureCity);
   if (!origin || profile.monthIndex < 0 || !profile.year) return;
   const month = `${profile.year}-${String(profile.monthIndex + 1).padStart(2, '0')}`;
+  const maxHours = getMaxTravelHours(profile);
 
   await Promise.all(
     batch.map(async (d) => {
@@ -187,6 +202,7 @@ async function attachFlightPrices(profile: TravelProfile, batch: Destination[]):
       try {
         const qs = new URLSearchParams({ origin, destination: dest, month, nights: profile.nights || '7' });
         if (profile.monthHalf) qs.set('half', profile.monthHalf);
+        if (isFinite(maxHours)) qs.set('maxHours', String(maxHours));
         const res = await fetch(`/api/flight-prices?${qs}`);
         if (!res.ok) return;
         const data = await res.json();
@@ -197,8 +213,11 @@ async function attachFlightPrices(profile: TravelProfile, batch: Destination[]):
             departureAt: data.departureAt,
             returnAt: data.returnAt,
             transfers: data.transfers,
+            durationTo: data.durationTo,
+            withinLimit: !!data.withinLimit,
             link: data.link,
           };
+          applyRealFlight(d);
         }
       } catch (err) {
         console.warn(`[prix vol] ${d.city} : indisponible`, err);

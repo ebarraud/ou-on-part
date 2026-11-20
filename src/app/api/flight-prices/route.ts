@@ -50,6 +50,8 @@ export async function GET(request: NextRequest) {
   const month = params.get('month') || ''; // YYYY-MM
   const half = params.get('half'); // '1' | '2' | null
   const nights = params.get('nights') || '7';
+  const maxHours = parseFloat(params.get('maxHours') || ''); // NaN = pas de limite
+  const maxMinutes = isFinite(maxHours) && maxHours > 0 ? maxHours * 60 : Infinity;
 
   if (!/^[A-Z]{3}$/.test(origin) || !/^[A-Z]{3}$/.test(destination) || !/^\d{4}-\d{2}$/.test(month)) {
     return NextResponse.json({ found: false, reason: 'paramètres invalides' }, { status: 400 });
@@ -93,10 +95,19 @@ export async function GET(request: NextRequest) {
       return stay >= minStay && stay <= maxStay;
     };
 
-    // Du plus précis au plus large : bonne quinzaine + bonne durée, puis quinzaine seule, puis mois
+    // Du plus précis au plus large : bonne quinzaine + bonne durée, puis quinzaine seule, puis mois.
+    // Dans chaque niveau, on préfère le moins cher dont la durée aller respecte la limite.
     const exact = tickets.filter((t) => inHalf(t) && goodStay(t));
     const halfOnly = tickets.filter(inHalf);
-    const pick = exact[0] ?? halfOnly[0] ?? tickets[0];
+    const tiers = [exact, halfOnly, tickets];
+    const fits = (t: TpTicket) => typeof t.duration_to === 'number' && t.duration_to <= maxMinutes;
+    let pick: TpTicket | undefined;
+    for (const tier of tiers) {
+      pick = tier.find(fits);
+      if (pick) break;
+    }
+    const withinLimit = !!pick;
+    if (!pick) pick = exact[0] ?? halfOnly[0] ?? tickets[0];
 
     if (!pick) {
       return NextResponse.json(
@@ -109,7 +120,8 @@ export async function GET(request: NextRequest) {
       {
         found: true,
         price: Math.round(pick.price),
-        approx: pick !== exact[0], // dates ou durée différentes de la demande
+        approx: !exact.includes(pick), // dates ou durée de séjour différentes de la demande
+        withinLimit, // durée aller du vol retenu ≤ limite demandée
         departureAt: pick.departure_at,
         returnAt: pick.return_at,
         transfers: pick.transfers ?? null,

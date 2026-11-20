@@ -79,6 +79,8 @@ export interface FlightPrice {
   departureAt?: string;
   returnAt?: string;
   transfers?: number | null;
+  durationTo?: number | null; // durée aller en minutes
+  withinLimit?: boolean; // durée aller ≤ limite de trajet du profil
   link?: string | null;
 }
 

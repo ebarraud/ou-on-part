@@ -1,4 +1,5 @@
 import type { TravelProfile, Destination } from './types';
+import { getOriginIata } from './airports';
 
 // Estimate check-in / check-out dates from profile
 function getDates(profile: TravelProfile): { checkin: string; checkout: string } {
@@ -37,12 +38,19 @@ function getAdults(profile: TravelProfile): number {
 }
 
 export function getSkyscannerLink(profile: TravelProfile, dest: Destination): string {
-  const { checkin } = getDates(profile);
-  // Skyscanner URL format: /transport/flights/{from}/{to}/{date}/
-  const fromSlug = profile.departureCity.toLowerCase().replace(/\s+/g, '-');
-  const toSlug = dest.city.toLowerCase().replace(/\s+/g, '-');
-  const dateSlug = checkin.replace(/-/g, '').substring(2); // YYMMDD
-  return `https://www.skyscanner.fr/transport/vols/${fromSlug}/${toSlug}/${dateSlug}/?adults=${getAdults(profile)}&adultsv2=${getAdults(profile)}&currency=EUR`;
+  const { checkin, checkout } = getDates(profile);
+  // Skyscanner attend des codes IATA (ex : /transport/vols/par/tci/261220/261227/),
+  // pas des noms de ville — sinon 404.
+  const from = (getOriginIata(profile.departureCity) || 'fr').toLowerCase();
+  const to = (
+    /^[A-Za-z]{3}$/.test(dest.airportCode || '') ? dest.airportCode! : dest.countryCode || ''
+  ).toLowerCase();
+  const adults = getAdults(profile);
+  if (!to) {
+    return `https://www.skyscanner.fr/transport/vols/${from}/?adultsv2=${adults}&currency=EUR`;
+  }
+  const yymmdd = (d: string) => d.replace(/-/g, '').substring(2);
+  return `https://www.skyscanner.fr/transport/vols/${from}/${to}/${yymmdd(checkin)}/${yymmdd(checkout)}/?adultsv2=${adults}&cabinclass=economy&rtn=1&currency=EUR`;
 }
 
 export function getBookingLink(profile: TravelProfile, dest: Destination): string {
