@@ -29,6 +29,18 @@ function getDates(profile: TravelProfile): { checkin: string; checkout: string }
   return { checkin: fmt(checkin), checkout: fmt(checkout) };
 }
 
+// Voyageurs : adultes + âges représentatifs des enfants (catégories du questionnaire)
+export function getPassengers(profile: TravelProfile): { adults: number; childAges: number[]; infants: number } {
+  const adults = getAdults(profile);
+  const ages: Record<string, number> = { baby: 1, young: 5, child: 10, teen: 15 };
+  const kids = profile.group === 'family' ? profile.kidsAges || [] : [];
+  return {
+    adults,
+    childAges: kids.filter((k) => k !== 'baby').map((k) => ages[k]),
+    infants: kids.filter((k) => k === 'baby').length,
+  };
+}
+
 // Number of adults
 function getAdults(profile: TravelProfile): number {
   switch (profile.group) {
@@ -41,19 +53,26 @@ function getAdults(profile: TravelProfile): number {
 }
 
 export function getSkyscannerLink(profile: TravelProfile, dest: Destination): string {
-  const { checkin, checkout } = getDates(profile);
+  // Dates : celles de l'utilisateur ; en mode flexible, celles du vol dont on affiche le prix
+  let { checkin, checkout } = getDates(profile);
+  if (!(profile.startDate && profile.endDate) && dest.flightPrice?.departureAt && dest.flightPrice.returnAt) {
+    checkin = dest.flightPrice.departureAt.slice(0, 10);
+    checkout = dest.flightPrice.returnAt.slice(0, 10);
+  }
   // Skyscanner attend des codes IATA (ex : /transport/vols/par/tci/261220/261227/),
   // pas des noms de ville — sinon 404.
   const from = (getDepartureIata(profile) || 'fr').toLowerCase();
   const to = (
     /^[A-Za-z]{3}$/.test(dest.airportCode || '') ? dest.airportCode! : dest.countryCode || ''
   ).toLowerCase();
-  const adults = getAdults(profile);
+  const { adults, childAges, infants } = getPassengers(profile);
+  const allChildAges = [...childAges, ...Array.from({ length: infants }, () => 1)];
+  const pax = `adultsv2=${adults}${allChildAges.length ? `&childrenv2=${allChildAges.join('%7C')}` : ''}`;
   if (!to) {
-    return `https://www.skyscanner.fr/transport/vols/${from}/?adultsv2=${adults}&currency=EUR`;
+    return `https://www.skyscanner.fr/transport/vols/${from}/?${pax}&currency=EUR`;
   }
   const yymmdd = (d: string) => d.replace(/-/g, '').substring(2);
-  return `https://www.skyscanner.fr/transport/vols/${from}/${to}/${yymmdd(checkin)}/${yymmdd(checkout)}/?adultsv2=${adults}&cabinclass=economy&rtn=1&currency=EUR`;
+  return `https://www.skyscanner.fr/transport/vols/${from}/${to}/${yymmdd(checkin)}/${yymmdd(checkout)}/?${pax}&cabinclass=economy&rtn=1&currency=EUR`;
 }
 
 export function getBookingLink(profile: TravelProfile, dest: Destination): string {

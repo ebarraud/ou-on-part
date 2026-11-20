@@ -61,10 +61,16 @@ function shiftMonth(ymd: string, days: number): string {
  * il pointe vers une offre précise souvent déjà épuisée (« This ticket has sold out »).
  * Le tout passe par la redirection de suivi Travelpayouts (marker + programme Aviasales).
  */
-function buildLink(t: TpTicket, adults: number, marker: string | undefined): string {
-  const ddmm = (iso: string) => `${iso.slice(8, 10)}${iso.slice(5, 7)}`;
-  const path = `${t.origin}${ddmm(localDay(t.departure_at))}${t.destination}${ddmm(localDay(t.return_at!))}${adults}`;
-  const search = `https://www.aviasales.com/search/${path}`;
+function buildLink(
+  origin: string,
+  destination: string,
+  depart: string, // YYYY-MM-DD
+  ret: string,
+  pax: string, // "2", "21", "211" : adultes, enfants, bébés
+  marker: string | undefined
+): string {
+  const ddmm = (ymd: string) => `${ymd.slice(8, 10)}${ymd.slice(5, 7)}`;
+  const search = `https://www.aviasales.com/search/${origin}${ddmm(depart)}${destination}${ddmm(ret)}${pax}`;
   if (!marker) return search;
   return `https://tp.media/r?marker=${encodeURIComponent(marker)}&p=${AVIASALES_PROGRAM_ID}&u=${encodeURIComponent(search)}`;
 }
@@ -108,6 +114,10 @@ export async function GET(request: NextRequest) {
   const depart = params.get('depart'); // YYYY-MM-DD (dates précises)
   const ret = params.get('return');
   const adults = Math.min(9, Math.max(1, parseInt(params.get('adults') || '1', 10) || 1));
+  const children = Math.min(8, Math.max(0, parseInt(params.get('children') || '0', 10) || 0));
+  const infants = Math.min(adults, Math.max(0, parseInt(params.get('infants') || '0', 10) || 0));
+  const pax = `${adults}${children || infants ? children : ''}${infants ? infants : ''}`;
+  const marker = process.env.TRAVELPAYOUTS_MARKER;
   const maxHours = parseFloat(params.get('maxHours') || ''); // NaN = pas de limite
   const maxMinutes = isFinite(maxHours) && maxHours > 0 ? maxHours * 60 : Infinity;
 
@@ -167,38 +177,58 @@ export async function GET(request: NextRequest) {
 
     // Dans chaque niveau, on préfère le moins cher dont la durée aller respecte la limite
     const fits = (t: TpTicket) => typeof t.duration_to === 'number' && t.duration_to <= maxMinutes;
-    let pick: TpTicket | undefined;
-    for (const tier of tiers) {
-      pick = tier.find(fits);
-      if (pick) break;
-    }
-    const withinLimit = !!pick;
-    if (!pick) pick = tiers.find((t) => t.length > 0)?.[0];
+    const choose = (levels: TpTicket[][]): { t?: TpTicket; withinLimit: boolean } => {
+      for (const level of levels) {
+        const t = level.find(fits);
+        if (t) return { t, withinLimit: true };
+      }
+      return { t: levels.find((l) => l.length > 0)?.[0], withinLimit: false };
+    };
+    const describe = (t: TpTicket, withinLimit: boolean, linkDates?: [string, string]) => ({
+      price: Math.round(t.price),
+      withinLimit,
+      departureAt: t.departure_at,
+      returnAt: t.return_at,
+      transfers: t.transfers ?? null,
+      durationTo: t.duration_to ?? null,
+      link: buildLink(
+        t.origin,
+        t.destination,
+        linkDates?.[0] ?? localDay(t.departure_at),
+        linkDates?.[1] ?? localDay(t.return_at!),
+        pax,
+        marker
+      ),
+    });
 
-    if (!pick) {
+    if (exactDates) {
+      // Dates précises : seul un billet AUX dates demandées compte comme prix constaté.
+      // Un billet à ±3 jours est proposé à part comme « autre date », jamais utilisé dans le budget
+      // (autour des fêtes, 3 jours d'écart peuvent diviser le prix par deux).
+      const main = choose([tiers[0]]);
+      const others = tiers[1].filter((t) => !tiers[0].includes(t));
+      const alt = choose([others]);
+      const alternative =
+        alt.t && (!main.t || alt.t.price < main.t.price * 0.85) ? describe(alt.t, alt.withinLimit) : null;
       return NextResponse.json(
-        {
-          found: false,
-          reason: exactDates
-            ? `aucun prix en cache à ±${DATE_TOLERANCE_DAYS} jours de ces dates`
-            : 'aucun prix en cache pour ce trajet',
-        },
+        main.t
+          ? { found: true, approx: false, ...describe(main.t, main.withinLimit, [depart!, ret!]), alternative }
+          : {
+              found: false,
+              reason: 'aucun prix en cache à ces dates',
+              alternative,
+              searchLink: buildLink(origin, destination, depart!, ret!, pax, marker),
+            },
         { headers: CACHE_HEADERS }
       );
     }
 
+    const { t: pick, withinLimit } = choose(tiers);
+    if (!pick) {
+      return NextResponse.json({ found: false, reason: 'aucun prix en cache pour ce trajet' }, { headers: CACHE_HEADERS });
+    }
     return NextResponse.json(
-      {
-        found: true,
-        price: Math.round(pick.price),
-        approx: !exact.includes(pick), // dates différentes de la demande
-        withinLimit, // durée aller du vol retenu ≤ limite demandée
-        departureAt: pick.departure_at,
-        returnAt: pick.return_at,
-        transfers: pick.transfers ?? null,
-        durationTo: pick.duration_to ?? null,
-        link: buildLink(pick, adults, process.env.TRAVELPAYOUTS_MARKER),
-      },
+      { found: true, approx: !exact.includes(pick), ...describe(pick, withinLimit) },
       { headers: CACHE_HEADERS }
     );
   } catch (error) {

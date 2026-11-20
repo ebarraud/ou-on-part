@@ -1,6 +1,7 @@
 import type { TravelProfile, Destination, Itinerary, Route } from './types';
 import { useTravelStore } from './store';
 import { getDepartureIata } from './airports';
+import { getPassengers } from './booking-links';
 import { formatRange, getNightsCount, hasExactDates } from './dates';
 import { getBudgetMultiplier, isHolidayPeak } from './budget';
 import {
@@ -205,8 +206,16 @@ async function attachFlightPrices(profile: TravelProfile, batch: Destination[]):
       const dest = (d.airportCode || '').toUpperCase();
       if (!/^[A-Z]{3}$/.test(dest) || dest === origin) return;
       try {
-        const adults = { solo: 1, couple: 2, family: 2, friends: 4 }[profile.group || 'couple'] ?? 2;
-        const qs = new URLSearchParams({ origin, destination: dest, month, nights: profile.nights || '7', adults: String(adults) });
+        const pax = getPassengers(profile);
+        const qs = new URLSearchParams({
+          origin,
+          destination: dest,
+          month,
+          nights: profile.nights || '7',
+          adults: String(pax.adults),
+          children: String(pax.childAges.length),
+          infants: String(pax.infants),
+        });
         if (hasExactDates(profile)) {
           qs.set('depart', profile.startDate);
           qs.set('return', profile.endDate);
@@ -229,6 +238,12 @@ async function attachFlightPrices(profile: TravelProfile, batch: Destination[]):
             link: data.link,
           };
           applyRealFlight(d);
+        }
+        if (data.alternative?.price > 0) {
+          d.flightAlternative = data.alternative;
+        }
+        if (!data.found && data.searchLink) {
+          d.flightSearchLink = data.searchLink;
         }
       } catch (err) {
         console.warn(`[prix vol] ${d.city} : indisponible`, err);

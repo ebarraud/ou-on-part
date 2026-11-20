@@ -106,7 +106,9 @@ export interface Destination {
     flight?: number; // part estimée du vol aller-retour dans le budget (€/pers.)
   };
   airportCode?: string; // code IATA (ville) de l'aéroport d'arrivée
-  flightPrice?: FlightPrice; // prix réel constaté (Travelpayouts), si trouvé
+  flightPrice?: FlightPrice; // prix réel constaté (Travelpayouts) aux dates demandées
+  flightAlternative?: Omit<FlightPrice, 'approx'>; // moins cher à ±3 jours (dates précises)
+  flightSearchLink?: string; // recherche Aviasales aux dates demandées quand aucun prix n'est connu
   flightDuration: string;
   travelHours?: number; // durée du trajet principal aller, en heures décimales
   flightType: string;

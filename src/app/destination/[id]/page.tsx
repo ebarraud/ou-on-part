@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useTravelStore } from '@/lib/store';
 import { getDisplayedBudget } from '@/lib/budget';
+import { formatShortRange } from '@/lib/dates';
 import { getSkyscannerLink, getBookingLink, getGetYourGuideLink } from '@/lib/booking-links';
 import WarningBadge from '@/components/results/WarningBadge';
 
@@ -86,6 +87,12 @@ export default function DestinationPage() {
           </div>
           <div className="col-span-2">
             <p className="text-xs text-gray-400">Vol aller-retour</p>
+            {dest.flightAlternative && (
+              <p className="text-xs text-sky-700 mb-1">
+                💡 {dest.flightAlternative.price.toLocaleString('fr-FR')}€/pers. en partant du{' '}
+                {formatShortRange(dest.flightAlternative.departureAt!.slice(0, 10), dest.flightAlternative.returnAt!.slice(0, 10))}
+              </p>
+            )}
             {dest.flightPrice ? (
               <p className="text-sm font-semibold">
                 ✈️ dès {dest.flightPrice.price.toLocaleString('fr-FR')}€ / pers.
@@ -151,6 +158,17 @@ export default function DestinationPage() {
         {/* Booking links — pre-filled from profile */}
         <div className="mb-6 space-y-2">
           <h2 className="text-lg font-bold text-gray-900 mb-3">Réserver</h2>
+          {!dest.flightPrice?.link && dest.flightSearchLink && (
+            <a
+              href={dest.flightSearchLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 rounded-btn border border-gray-200 px-4 py-3 hover:bg-gray-50 transition-colors"
+            >
+              <span className="text-xl">✈️</span>
+              <span className="text-sm font-medium">Trouver un vol sur Aviasales</span>
+            </a>
+          )}
           {dest.flightPrice?.link && (
             <a
               href={dest.flightPrice.link}
