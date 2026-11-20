@@ -160,7 +160,10 @@ export default function DestinationPage() {
             >
               <span className="text-xl">✈️</span>
               <span className="text-sm font-medium">
-                Voir le vol à {dest.flightPrice.price.toLocaleString('fr-FR')}€ sur Aviasales
+                Voir les vols sur Aviasales
+                <span className="block text-xs font-normal text-gray-500">
+                  Vu dès {dest.flightPrice.price.toLocaleString('fr-FR')}€ récemment — le prix peut avoir changé
+                </span>
               </span>
             </a>
           )}

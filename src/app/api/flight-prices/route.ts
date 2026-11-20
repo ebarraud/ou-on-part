@@ -31,6 +31,9 @@ const STAY_RANGE: Record<string, [number, number]> = {
 // Tolérance autour des dates précises
 const DATE_TOLERANCE_DAYS = 3;
 
+// Identifiant du programme Aviasales dans les redirections tp.media
+const AVIASALES_PROGRAM_ID = 4114;
+
 const DAY_MS = 86_400_000;
 const CACHE_HEADERS = { 'Cache-Control': 's-maxage=21600, stale-while-revalidate=86400' };
 
@@ -52,11 +55,18 @@ function shiftMonth(ymd: string, days: number): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
-function buildLink(link: string | undefined, marker: string | undefined): string | null {
-  if (!link) return null;
-  const url = new URL(link, 'https://www.aviasales.com');
-  if (marker) url.searchParams.set('marker', marker);
-  return url.toString();
+/**
+ * Lien vers une recherche Aviasales fraîche sur les dates du billet trouvé
+ * (ex. /search/LYS2012TCI27121). On n'utilise pas le lien « billet » du cache :
+ * il pointe vers une offre précise souvent déjà épuisée (« This ticket has sold out »).
+ * Le tout passe par la redirection de suivi Travelpayouts (marker + programme Aviasales).
+ */
+function buildLink(t: TpTicket, adults: number, marker: string | undefined): string {
+  const ddmm = (iso: string) => `${iso.slice(8, 10)}${iso.slice(5, 7)}`;
+  const path = `${t.origin}${ddmm(localDay(t.departure_at))}${t.destination}${ddmm(localDay(t.return_at!))}${adults}`;
+  const search = `https://www.aviasales.com/search/${path}`;
+  if (!marker) return search;
+  return `https://tp.media/r?marker=${encodeURIComponent(marker)}&p=${AVIASALES_PROGRAM_ID}&u=${encodeURIComponent(search)}`;
 }
 
 async function fetchTickets(token: string, origin: string, destination: string, month: string): Promise<TpTicket[]> {
@@ -97,6 +107,7 @@ export async function GET(request: NextRequest) {
   const nights = params.get('nights') || '7';
   const depart = params.get('depart'); // YYYY-MM-DD (dates précises)
   const ret = params.get('return');
+  const adults = Math.min(9, Math.max(1, parseInt(params.get('adults') || '1', 10) || 1));
   const maxHours = parseFloat(params.get('maxHours') || ''); // NaN = pas de limite
   const maxMinutes = isFinite(maxHours) && maxHours > 0 ? maxHours * 60 : Infinity;
 
@@ -186,7 +197,7 @@ export async function GET(request: NextRequest) {
         returnAt: pick.return_at,
         transfers: pick.transfers ?? null,
         durationTo: pick.duration_to ?? null,
-        link: buildLink(pick.link, process.env.TRAVELPAYOUTS_MARKER),
+        link: buildLink(pick, adults, process.env.TRAVELPAYOUTS_MARKER),
       },
       { headers: CACHE_HEADERS }
     );

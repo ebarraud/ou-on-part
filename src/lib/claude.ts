@@ -205,7 +205,8 @@ async function attachFlightPrices(profile: TravelProfile, batch: Destination[]):
       const dest = (d.airportCode || '').toUpperCase();
       if (!/^[A-Z]{3}$/.test(dest) || dest === origin) return;
       try {
-        const qs = new URLSearchParams({ origin, destination: dest, month, nights: profile.nights || '7' });
+        const adults = { solo: 1, couple: 2, family: 2, friends: 4 }[profile.group || 'couple'] ?? 2;
+        const qs = new URLSearchParams({ origin, destination: dest, month, nights: profile.nights || '7', adults: String(adults) });
         if (hasExactDates(profile)) {
           qs.set('depart', profile.startDate);
           qs.set('return', profile.endDate);
