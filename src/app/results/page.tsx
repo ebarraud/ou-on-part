@@ -14,6 +14,7 @@ import {
 } from '@/lib/constraints';
 import type { Destination } from '@/lib/types';
 import DestinationCard from '@/components/results/DestinationCard';
+import PriceDisclaimer from '@/components/results/PriceDisclaimer';
 
 // Les destinations refusées les plus proches des critères, avec la raison en alerte rouge
 function closestMisses(profile: Parameters<typeof getBudgetCap>[0], rejected: Rejection[]): Destination[] {
@@ -222,6 +223,10 @@ export default function ResultsPage() {
             )
           ))}
         </div>
+      )}
+
+      {!isGenerating && !error && (destinations.length > 0 || nearMisses.length > 0) && (
+        <PriceDisclaimer className="mt-4" />
       )}
 
       {/* Moins de 3 destinations conformes */}

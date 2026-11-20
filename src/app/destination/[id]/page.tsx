@@ -6,6 +6,7 @@ import { getDisplayedBudget } from '@/lib/budget';
 import { formatShortRange } from '@/lib/dates';
 import { getSkyscannerLink, getBookingLink, getGetYourGuideLink } from '@/lib/booking-links';
 import WarningBadge from '@/components/results/WarningBadge';
+import PriceDisclaimer from '@/components/results/PriceDisclaimer';
 
 export default function DestinationPage() {
   const router = useRouter();
@@ -80,7 +81,7 @@ export default function DestinationPage() {
             </div>
           )}
           <div>
-            <p className="text-xs text-gray-400">Budget estimé</p>
+            <p className="text-xs text-gray-400">Budget estimé / pers.</p>
             <p className="text-sm font-semibold">
               {adjustedBudget.min.toLocaleString('fr-FR')}€ – {adjustedBudget.max.toLocaleString('fr-FR')}€
             </p>
@@ -97,7 +98,7 @@ export default function DestinationPage() {
               <p className="text-sm font-semibold">
                 ✈️ dès {dest.flightPrice.price.toLocaleString('fr-FR')}€ / pers.
                 <span className="text-xs font-normal text-gray-500 ml-1">
-                  prix constaté sur Aviasales{dest.flightPrice.approx ? ' (dates proches)' : ''}
+                  vu récemment sur Aviasales{dest.flightPrice.approx ? ' (dates proches)' : ''}
                 </span>
               </p>
             ) : (
@@ -116,6 +117,8 @@ export default function DestinationPage() {
             <p className="text-sm font-semibold">{dest.mainLanguage}</p>
           </div>
         </div>
+
+        <PriceDisclaimer className="-mt-3 mb-6" />
 
         {/* Match reasons */}
         <div className="mb-6">

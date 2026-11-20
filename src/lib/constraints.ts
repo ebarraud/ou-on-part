@@ -100,7 +100,7 @@ export function checkDestination(
     return {
       destination: d,
       kind: 'budget',
-      reason: `budget minimum ${budget.min}€${budget.realFlight ? ` (dont vol à ${d.flightPrice!.price}€, prix constaté)` : ''} au-dessus du maximum de ${cap}€`,
+      reason: `budget minimum ${budget.min}€${budget.realFlight ? ` (dont vol vu à ${d.flightPrice!.price}€)` : ''} au-dessus du maximum de ${cap}€`,
       overshoot: budget.min - cap,
     };
   }

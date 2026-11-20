@@ -67,7 +67,7 @@ export default function DestinationCard({
         {/* Quick info */}
         {d.flightPrice && (
           <div className="text-xs text-emerald-700 mb-1">
-            ✈️ Vol A/R dès {d.flightPrice.price.toLocaleString('fr-FR')}€/pers. · prix constaté{d.flightPrice.approx ? ' (dates proches)' : ''}
+            ✈️ Vol A/R dès {d.flightPrice.price.toLocaleString('fr-FR')}€/pers. · vu récemment sur Aviasales{d.flightPrice.approx ? ' (dates proches)' : ''}
             {!d.flightPrice.withinLimit && d.flightPrice.durationTo ? (
               <span className="text-amber-700">
                 {' '}— ce vol fait {Math.floor(d.flightPrice.durationTo / 60)}h{String(d.flightPrice.durationTo % 60).padStart(2, '0')}

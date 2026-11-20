@@ -160,7 +160,7 @@ export const Q8_TRANSPORT: QuestionConfig = {
     { icon: '✈️', label: 'Avion', detail: 'Toujours disponible', value: 'plane' },
     { icon: '🚂', label: 'Train', detail: 'Selon destination', value: 'train' },
     { icon: '🚗', label: 'Voiture', detail: 'Toujours disponible', value: 'car' },
-    { icon: '⛴️', label: 'Ferry', detail: 'Depuis un port — accès inclus dans le calcul', value: 'ferry' },
+    { icon: '⛴️', label: 'Ferry', detail: 'Traversée estimée dans le budget', value: 'ferry' },
   ],
 };
 
