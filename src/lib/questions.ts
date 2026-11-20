@@ -26,6 +26,15 @@ const BUDGET_BY_NIGHTS: Record<string, { tight: string; moderate: string; comfor
   '10+': { tight: '< 1 000€', moderate: '1 000–2 000€', comfort: '2 000–4 500€', unlimited: '4 500€+' },
 };
 
+// Plafonds numériques (€/pers., tout compris) correspondant aux libellés ci-dessus.
+// 'unlimited' = pas de plafond.
+export const BUDGET_MAX_BY_NIGHTS: Record<string, { tight: number; moderate: number; comfort: number }> = {
+  '2-3': { tight: 300, moderate: 600, comfort: 1200 },
+  '4-6': { tight: 500, moderate: 1000, comfort: 2000 },
+  '7':   { tight: 700, moderate: 1500, comfort: 3000 },
+  '10+': { tight: 1000, moderate: 2000, comfort: 4500 },
+};
+
 export function getBudgetQuestion(nights: string | null): QuestionConfig {
   const ranges = BUDGET_BY_NIGHTS[nights || '7'] || BUDGET_BY_NIGHTS['7'];
   return {
@@ -152,6 +161,22 @@ export const Q8_TRANSPORT: QuestionConfig = {
     { icon: '🚂', label: 'Train', detail: 'Selon destination', value: 'train' },
     { icon: '🚗', label: 'Voiture', detail: 'Toujours disponible', value: 'car' },
     { icon: '⛴️', label: 'Ferry', detail: 'Depuis un port — accès inclus dans le calcul', value: 'ferry' },
+  ],
+};
+
+export const Q8B_FLIGHT_RANGE: QuestionConfig = {
+  id: 'flightRange',
+  question: '✈️ Jusqu\'où on est prêt à voler ?',
+  subtitle: 'Un ou plusieurs choix — durée de vol aller',
+  contextBadge: '✈️ Spécifique avion',
+  field: 'flightRange',
+  multi: true,
+  layout: 'list',
+  skipLabel: 'Passer — selon la durée du séjour',
+  options: [
+    { icon: '🛬', label: 'Proche', detail: 'Jusqu\'à 3h — Europe proche', value: 'short' },
+    { icon: '✈️', label: 'Moyen-courrier', detail: 'Jusqu\'à 6h — Europe, Maghreb, Canaries', value: 'medium' },
+    { icon: '🌏', label: 'Long-courrier', detail: 'Au-delà — Asie, Amériques, outre-mer', value: 'long' },
   ],
 };
 
@@ -351,7 +376,7 @@ export const Q16_STOPS: QuestionConfig = {
 
 export type StepId =
   | 'month' | 'nights' | 'budget' | 'tripContext' | 'travelStyle'
-  | 'group' | 'kidsAges' | 'departureCity' | 'transport'
+  | 'group' | 'kidsAges' | 'departureCity' | 'transport' | 'flightRange'
   | 'vibe' | 'waterTemp' | 'visited'
   | 'priority' | 'sportActivities' | 'climate' | 'accommodation' | 'constraints'
   | 'language' | 'stopsCount';
@@ -372,6 +397,11 @@ export function buildQueue(profile: TravelProfile): StepId[] {
   }
 
   queue.push('departureCity', 'transport');
+
+  // Q8b — distance de vol si l'avion est accepté
+  if (profile.transport.includes('plane')) {
+    queue.push('flightRange');
+  }
 
   queue.push('vibe');
 

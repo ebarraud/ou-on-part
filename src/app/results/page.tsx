@@ -3,8 +3,42 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTravelStore } from '@/lib/store';
-import { generateDestinations, generateOneDestination } from '@/lib/claude';
+import { generateValidDestinations } from '@/lib/claude';
+import { calculateBudget } from '@/lib/budget';
+import {
+  buildRelaxSuggestions,
+  describeCriteria,
+  getBudgetCap,
+  getMaxTravelHours,
+  type Rejection,
+} from '@/lib/constraints';
+import type { Destination } from '@/lib/types';
 import DestinationCard from '@/components/results/DestinationCard';
+
+// Les destinations refusées les plus proches des critères, avec la raison en alerte rouge
+function closestMisses(profile: Parameters<typeof getBudgetCap>[0], rejected: Rejection[]): Destination[] {
+  const cap = getBudgetCap(profile);
+  const maxHours = getMaxTravelHours(profile);
+  const score = (r: Rejection) =>
+    r.kind === 'budget' ? r.overshoot / (isFinite(cap) ? cap : 1) : r.overshoot / (isFinite(maxHours) ? maxHours : 1);
+  const seen = new Set<string>();
+  return [...rejected]
+    .sort((a, b) => score(a) - score(b))
+    .filter((r) => {
+      const key = r.destination.countryCode + r.destination.city;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 3)
+    .map((r) => ({
+      ...r.destination,
+      warnings: [
+        { level: 'red' as const, text: `Hors critères : ${r.reason}` },
+        ...(r.destination.warnings || []),
+      ],
+    }));
+}
 
 export default function ResultsPage() {
   const router = useRouter();
@@ -20,38 +54,26 @@ export default function ResultsPage() {
 
   const [error, setError] = useState<string | null>(null);
   const [replacingIndex, setReplacingIndex] = useState<number | null>(null);
+  const [nearMisses, setNearMisses] = useState<Destination[]>([]);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const hasStarted = useRef(false);
 
   const generate = (overrideProfile?: typeof profile) => {
     const p = overrideProfile || profile;
     setIsGenerating(true);
     setError(null);
+    setNearMisses([]);
+    setSuggestions([]);
 
-    generateDestinations(p)
-      .then(async (dests) => {
-        // Client-side filter: ensure no visited/rejected country slips through
-        const filtered = dests.filter(
-          (d) => !p.visited.includes(d.countryCode)
-        );
-
-        // If filter removed some destinations, generate replacements one by one
-        const missing = 3 - filtered.length;
-        if (missing > 0) {
-          const existingCodes = filtered.map((d) => d.countryCode);
-          for (let i = 0; i < missing; i++) {
-            try {
-              const replacement = await generateOneDestination(p, [...existingCodes]);
-              if (!p.visited.includes(replacement.countryCode)) {
-                filtered.push(replacement);
-                existingCodes.push(replacement.countryCode);
-              }
-            } catch (err) {
-              console.error('Failed to generate replacement destination:', err);
-            }
-          }
+    generateValidDestinations(p, 3)
+      .then(({ destinations: valid, rejected }) => {
+        setDestinations(valid);
+        if (valid.length < 3) {
+          setSuggestions(buildRelaxSuggestions(p, rejected));
         }
-
-        setDestinations(filtered);
+        if (valid.length === 0) {
+          setNearMisses(closestMisses(p, rejected));
+        }
       })
       .catch((err) => {
         console.error('Failed to generate destinations:', err);
@@ -99,10 +121,15 @@ export default function ResultsPage() {
     const allDisplayedCodes = destinations.map((d) => d.countryCode);
     const updatedProfile = { ...profile, visited: newVisited };
 
-    generateOneDestination(updatedProfile, allDisplayedCodes)
-      .then((newDest) => {
+    generateValidDestinations(updatedProfile, 1, allDisplayedCodes)
+      .then(({ destinations: found }) => {
+        if (found.length === 0) {
+          // Aucune remplaçante ne respecte les critères : on retire la carte
+          setDestinations(destinations.filter((_, i) => i !== rejectedIndex));
+          return;
+        }
         const updated = [...destinations];
-        updated[rejectedIndex] = newDest;
+        updated[rejectedIndex] = found[0];
         setDestinations(updated);
       })
       .catch((err) => {
@@ -115,7 +142,7 @@ export default function ResultsPage() {
       });
   };
 
-  const handleSelect = (dest: typeof destinations[0]) => {
+  const handleSelect = (dest: Destination) => {
     setSelectedDestination(dest);
     router.push(`/destination/${dest.id}`);
   };
@@ -129,7 +156,11 @@ export default function ResultsPage() {
             ? '✨ On cherche...'
             : error
               ? '😕 Oups...'
-              : '3 destinations pour toi'}
+              : destinations.length === 0 && nearMisses.length > 0
+                ? '🤔 Rien ne colle parfaitement'
+                : destinations.length === 1
+                  ? '1 destination pour toi'
+                  : `${destinations.length} destinations pour toi`}
         </h1>
         <p className="text-sm text-gray-500 mt-1">
           Basé sur 15 critères · {profile.month}
@@ -179,6 +210,7 @@ export default function ResultsPage() {
               <DestinationCard
                 key={dest.id}
                 destination={dest}
+                displayBudget={calculateBudget(profile, dest.budget)}
                 rank={(i + 1) as 1 | 2 | 3}
                 onSelect={() => handleSelect(dest)}
                 onReject={replacingIndex !== null ? undefined : handleReject}
@@ -188,6 +220,54 @@ export default function ResultsPage() {
               />
             )
           ))}
+        </div>
+      )}
+
+      {/* Moins de 3 destinations conformes */}
+      {!isGenerating && !error && destinations.length > 0 && destinations.length < 3 && (
+        <div className="mt-4 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-btn px-4 py-3">
+          Seulement {destinations.length} destination{destinations.length > 1 ? 's respectent' : ' respecte'} tous tes critères.
+          {suggestions.length > 0 && <> Pour plus de choix : {suggestions.join(', ou ')}.</>}
+        </div>
+      )}
+
+      {/* Aucune destination conforme : on le dit, et on montre le plus proche */}
+      {!isGenerating && !error && destinations.length === 0 && nearMisses.length > 0 && (
+        <div className="space-y-4">
+          <div className="text-sm text-gray-800 bg-amber-50 border border-amber-200 rounded-btn px-4 py-3">
+            <p className="font-semibold">{describeCriteria(profile)}, aucune destination ne respecte tous tes critères.</p>
+            <p className="mt-1">Voici le plus proche de ce que tu cherches.</p>
+            {suggestions.length > 0 && (
+              <p className="mt-2 text-xs text-gray-600">
+                Pour trouver mieux : {suggestions.join(', ou ')}.
+              </p>
+            )}
+          </div>
+          {nearMisses.map((dest, i) => (
+            <DestinationCard
+              key={`miss-${dest.id}-${i}`}
+              destination={dest}
+              displayBudget={calculateBudget(profile, dest.budget)}
+              rank={(i + 1) as 1 | 2 | 3}
+              onSelect={() => handleSelect(dest)}
+              departureCity={profile.departureCity}
+              nights={profile.nights || undefined}
+              hasCarTransport={profile.transport.includes('car')}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Aucun résultat du tout */}
+      {!isGenerating && !error && destinations.length === 0 && nearMisses.length === 0 && hasStarted.current && (
+        <div className="flex-1 flex flex-col items-center justify-center gap-4">
+          <p className="text-sm text-gray-600 text-center">Aucune destination trouvée pour ces critères.</p>
+          <button
+            onClick={handleRetry}
+            className="px-6 py-3 rounded-btn font-semibold text-sm bg-primary text-white hover:bg-primary-dark transition-all"
+          >
+            🔄 Réessayer
+          </button>
         </div>
       )}
 

@@ -6,7 +6,7 @@ import { useTravelStore } from '@/lib/store';
 import {
   buildQueue,
   Q2_NIGHTS, getBudgetQuestion, Q4_TRIP_CONTEXT_FULL, Q5_TRAVEL_STYLE,
-  Q6_GROUP, Q6B_KIDS, Q8_TRANSPORT,
+  Q6_GROUP, Q6B_KIDS, Q8_TRANSPORT, Q8B_FLIGHT_RANGE,
   Q9_VIBE, Q9B_WATER_TEMP,
   Q11_PRIORITY, Q11B_SPORT_ACTIVITIES, Q12_CLIMATE, Q13_ACCOMMODATION,
   Q14_CONSTRAINTS, Q15_LANGUAGE, Q16_STOPS,
@@ -25,6 +25,7 @@ const STATIC_STEP_CONFIG: Record<string, QuestionConfig> = {
   group: Q6_GROUP,
   kidsAges: Q6B_KIDS,
   transport: Q8_TRANSPORT,
+  flightRange: Q8B_FLIGHT_RANGE,
   vibe: Q9_VIBE,
   waterTemp: Q9B_WATER_TEMP,
   priority: Q11_PRIORITY,

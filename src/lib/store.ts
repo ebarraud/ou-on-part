@@ -15,6 +15,7 @@ const initialProfile: TravelProfile = {
   kidsAges: [],
   departureCity: '',
   transport: [],
+  flightRange: [],
   vibe: [],
   waterTemp: null,
   mountainLevel: [],

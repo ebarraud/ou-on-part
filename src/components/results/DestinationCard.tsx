@@ -7,6 +7,7 @@ import BudgetRange from './BudgetRange';
 
 interface DestinationCardProps {
   destination: Destination;
+  displayBudget?: { min: number; max: number };
   rank: 1 | 2 | 3;
   onSelect: () => void;
   onReject?: (countryCode: string) => void;
@@ -17,6 +18,7 @@ interface DestinationCardProps {
 
 export default function DestinationCard({
   destination,
+  displayBudget,
   rank,
   onSelect,
   onReject,
@@ -52,7 +54,11 @@ export default function DestinationCard({
 
         {/* Budget */}
         <div className="mb-2">
-          <BudgetRange min={d.budget.min} max={d.budget.max} currency={d.budget.currency} />
+          <BudgetRange
+            min={displayBudget?.min ?? d.budget.min}
+            max={displayBudget?.max ?? d.budget.max}
+            currency={d.budget.currency}
+          />
         </div>
 
         {/* Quick info */}

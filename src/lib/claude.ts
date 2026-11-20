@@ -1,5 +1,14 @@
 import type { TravelProfile, Destination, Itinerary, Route } from './types';
 import { useTravelStore } from './store';
+import { getBudgetMultiplier, isHolidayPeak } from './budget';
+import {
+  checkDestination,
+  formatHours,
+  getBaseBudgetCap,
+  getBudgetCap,
+  getMaxTravelHours,
+  type Rejection,
+} from './constraints';
 
 async function callClaude(prompt: string): Promise<string> {
   const res = await fetch('/api/claude', {
@@ -27,23 +36,59 @@ async function callClaude(prompt: string): Promise<string> {
   return data.content;
 }
 
-export async function generateDestinations(profile: TravelProfile): Promise<Destination[]> {
-  // Build budget guidance
-  const budgetGuide: Record<string, string> = {
-    tight: 'SERRÉ — max 50€/jour/personne (hébergement + repas + activités, hors vol). Privilégie les destinations pas chères : Balkans, Asie du Sud-Est, Maroc, Tunisie, Europe de l\'Est, etc.',
-    moderate: 'MODÉRÉ — 50-120€/jour/personne. Bon rapport qualité/prix.',
-    comfort: 'CONFORT — 120-250€/jour/personne. Hôtels de qualité, restaurants, expériences.',
-    unlimited: 'SANS LIMITE — pas de contrainte budgétaire. Propose du haut de gamme.',
-  };
+const BUDGET_STYLE: Record<string, string> = {
+  tight: 'SERRÉ — destinations pas chères : Balkans, Asie du Sud-Est, Maroc, Tunisie, Europe de l\'Est, etc.',
+  moderate: 'MODÉRÉ — bon rapport qualité/prix.',
+  comfort: 'CONFORT — hôtels de qualité, restaurants, expériences.',
+  unlimited: 'SANS LIMITE — propose du haut de gamme.',
+};
 
-  const budgetInstruction = budgetGuide[profile.budget || 'moderate'] || budgetGuide.moderate;
+const SPORT_GLOSSARY = '(mountain_walk = balades tranquilles en montagne, hiking = randonnée en montagne/nature, climbing = escalade/via ferrata, trail = trail/running, ski = ski/snowboard, mtb = VTT, cycling = vélo route, surf = surf, windsurf = windsurf/wingfoil, watersports = sports nautiques, diving = plongée/snorkeling, paragliding = parapente, skydiving = parachute/ULM, kayak = kayak/canoë/rafting)';
 
-  const prompt = `Tu es un expert voyagiste francophone. Voici le profil du voyageur :
+function parseJson(content: string): unknown {
+  try {
+    return JSON.parse(content);
+  } catch {
+    const match = content.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    throw new Error('Réponse de Claude illisible');
+  }
+}
+
+function buildDestinationsPrompt(
+  profile: TravelProfile,
+  count: number,
+  excludedCodes: string[],
+  rejected: Rejection[]
+): string {
+  const allExcluded = Array.from(new Set([...profile.visited, ...excludedCodes]));
+  const budgetCap = getBudgetCap(profile);
+  const baseCap = getBaseBudgetCap(profile);
+  const budgetMultiplier = getBudgetMultiplier(profile);
+  const maxHours = getMaxTravelHours(profile);
+  const period = `${profile.month}${profile.monthHalf ? (profile.monthHalf === '1' ? ' (première quinzaine)' : ' (deuxième quinzaine)') : ''} ${profile.year}`;
+  const plural = count > 1;
+
+  const budgetRule = isFinite(budgetCap)
+    ? `- BUDGET MAX : ${budgetCap}€ par personne TOUT COMPRIS (vol aller-retour + hébergement + repas + activités) pour ${profile.nights} nuits.
+  L'application applique ensuite elle-même une majoration de ×${budgetMultiplier.toFixed(2)} (saison${isHolidayPeak(profile) ? ' — période des fêtes, la plus chère de l\'année' : ''}, groupe, type d'hébergement).
+  Donc budget.min et budget.max doivent être des prix de base, et budget.min doit être ≤ ${baseCap}€. Sois réaliste sur le prix du vol à cette période : si le vol seul dépasse ce montant, la destination est exclue.`
+    : `- BUDGET : pas de plafond. Donne budget.min et budget.max en prix de base (l'application applique la majoration saisonnière).`;
+
+  const travelRule = isFinite(maxHours)
+    ? `- TRAJET MAX : le trajet principal ALLER depuis ${profile.departureCity} (vol, route, train ou ferry) ne doit PAS dépasser ${formatHours(maxHours)}. Renseigne travelHours = cette durée en heures décimales (ex : 3.5 pour 3h30), escales comprises.`
+    : `- TRAJET : pas de limite de durée (long-courrier accepté). Renseigne travelHours = durée du trajet principal aller en heures décimales, escales comprises.`;
+
+  const rejectedBlock = rejected.length > 0
+    ? `\nDESTINATIONS DÉJÀ REFUSÉES (ne les repropose pas, et évite les destinations comparables) :\n${rejected
+        .map((r) => `- ${r.destination.city}, ${r.destination.country} : ${r.reason}`)
+        .join('\n')}\n`
+    : '';
+
+  return `Tu es un expert voyagiste francophone. Voici le profil du voyageur :
 ${JSON.stringify(profile, null, 2)}
 
-BUDGET : ${budgetInstruction}
-
-Génère EXACTEMENT 3 destinations en JSON avec cette structure :
+Génère EXACTEMENT ${count} destination${plural ? 's' : ''} en JSON avec cette structure :
 {
   "destinations": [
     {
@@ -56,6 +101,7 @@ Génère EXACTEMENT 3 destinations en JSON avec cette structure :
       "matchReasons": ["Raison 1", "Raison 2", "Raison 3"],
       "budget": { "min": 860, "max": 1050, "currency": "EUR", "includes": "vol + hôtel X nuits" },
       "flightDuration": "3h30",
+      "travelHours": 3.5,
       "flightType": "direct",
       "airTemp": 32,
       "waterTemp": 26,
@@ -76,184 +122,106 @@ Génère EXACTEMENT 3 destinations en JSON avec cette structure :
   ]
 }
 
-Règles STRICTES — TOUS les critères du profil doivent être respectés :
-
-EXCLUSIONS :
-- Les destinations NE DOIVENT PAS être dans la liste des pays déjà visités : ${profile.visited.join(', ')}
-
-PÉRIODE & DURÉE :
-- Mois de voyage : ${profile.month}${profile.monthHalf ? (profile.monthHalf === '1' ? ' (première quinzaine)' : ' (deuxième quinzaine)') : ''} ${profile.year}
-- Durée : ${profile.nights} nuits. Le budget.min et budget.max = budget TOTAL par personne pour cette durée, vol inclus
-- Warnings pertinents pour cette période (météo, saison des pluies, haute saison, etc.)
-
-BUDGET :
-- IMPORTANT : Le budget TOTAL (vol + hébergement + repas + activités) doit RESPECTER le niveau choisi (${profile.budget}). ${budgetInstruction}
-
-CONTEXTE & GROUPE :
-- Type de voyage : ${profile.tripContext || 'non précisé'}. Adapte l'ambiance (ex: honeymoon → romantique, friends → festif, workation → bon wifi)
-- Groupe : ${profile.group || 'non précisé'}${profile.kidsAges.length > 0 ? '. Enfants : ' + profile.kidsAges.join(', ') + ' — destinations adaptées aux familles, sécurité, activités enfants' : ''}
+═══ CONTRAINTES ÉLIMINATOIRES ═══
+Chaque destination est vérifiée automatiquement après ta réponse. Une seule contrainte non respectée = destination rejetée.
+- PAYS EXCLUS : ${allExcluded.length > 0 ? allExcluded.join(', ') : 'aucun'}
+${budgetRule}
+${travelRule}
+- TRANSPORTS ACCEPTÉS : ${profile.transport.join(', ')}. Ne propose QUE des destinations accessibles avec ces modes depuis ${profile.departureCity}
+- PÉRIODE : ${period}, ${profile.nights} nuits
+${profile.constraints.length > 0 ? '- CONTRAINTES PERSONNELLES : ' + profile.constraints.join(', ') + ' (PMR → accessibilité, végétarien → offre locale, halal → offre locale, glutenfree → offre locale, noaltitude → pas au-dessus de 2 000 m, noheat → pas de chaleur au-dessus de 35°C à cette période)' : ''}
+${profile.group === 'family' && profile.kidsAges.length > 0 ? '- ENFANTS : ' + profile.kidsAges.join(', ') + ' — destinations sûres et adaptées aux familles' : ''}
+${rejectedBlock}
+═══ PRÉFÉRENCES (à pondérer dans le matchScore) ═══
+- Style de budget : ${BUDGET_STYLE[profile.budget || 'moderate']}
+- Type de voyage : ${profile.tripContext || 'non précisé'} (honeymoon → romantique, friends → festif, workation → bon wifi)
+- Groupe : ${profile.group || 'non précisé'}
 - Style : ${profile.travelStyle === 'moving' ? 'circuit multi-étapes' : 'base fixe'}
+- Ambiances : ${profile.vibe.join(', ') || 'non précisé'}
+${profile.waterTemp && profile.waterTemp !== 'any' ? '- Température de l\'eau : ' + profile.waterTemp : ''}
+- Climat : ${profile.climate.length > 0 ? profile.climate.join(', ') + '. Chaque destination doit correspondre à au moins un de ces climats à cette période' + (plural ? ' ; varie pour couvrir les climats choisis' : '') : 'non précisé'}
+- Priorités : ${profile.priority.join(', ') || 'non précisé'}. Le matchScore et les matchReasons doivent les refléter
+${profile.sportActivities.length > 0 ? '- Activités sportives : ' + profile.sportActivities.join(', ') + '. Mentionne les spots dans highlights et matchReasons. ' + SPORT_GLOSSARY : ''}
+- Hébergement : ${profile.accommodation.length > 0 ? profile.accommodation.join(', ') : 'non précisé'}
+- Langue : ${profile.language || 'any'}${profile.language === 'french' ? ' (privilégie les pays francophones ou l\'outre-mer)' : profile.language === 'english' ? ' (anglais largement parlé)' : profile.language === 'nearby' ? ' (culture proche de la France)' : ''}
 
-TRANSPORT & DÉPART :
-- Ville de départ : ${profile.departureCity}. La durée de vol (flightDuration) doit être calculée DEPUIS cette ville
-- Transports acceptés : ${profile.transport.join(', ')}. Ne propose QUE des destinations accessibles avec ces modes de transport
-${profile.transport.some((t: string) => ['car', 'train', 'ferry'].includes(t)) && !profile.transport.includes('plane') ? `- CONTRAINTE TEMPS DE TRAJET (voiture/train/ferry) : le trajet ALLER depuis ${profile.departureCity} ne doit PAS dépasser ${profile.nights === '10+' ? '8h' : '4h'}. C'est une règle STRICTE. Exemple : pour un week-end depuis Grenoble, la Croatie ou la Sardaigne sont TROP LOIN. Privilégie les destinations proches.` : profile.transport.some((t: string) => ['car', 'train', 'ferry'].includes(t)) && profile.transport.includes('plane') ? `- CONSEIL TEMPS DE TRAJET : si la destination est accessible en voiture/train/ferry, le trajet ALLER depuis ${profile.departureCity} ne devrait pas dépasser ${profile.nights === '10+' ? '8h' : '4h'}. Pour les destinations plus lointaines, privilégie l'avion.` : ''}
-
-AMBIANCE & ENVIRONNEMENT :
-- Ambiances souhaitées : ${profile.vibe.join(', ')}. Les destinations DOIVENT correspondre à ces ambiances
-${profile.waterTemp && profile.waterTemp !== 'any' ? '- Température de l\'eau souhaitée : ' + profile.waterTemp + '. Adapte les destinations balnéaires en conséquence' : ''}
-- Climat souhaité : ${profile.climate.length > 0 ? profile.climate.join(', ') : 'non précisé'}. Chaque destination doit correspondre à AU MOINS UN de ces climats pour la période choisie. Varie les propositions pour couvrir les différents climats sélectionnés.
-
-PRIORITÉS & ACTIVITÉS :
-- Priorités du voyageur : ${profile.priority.join(', ')}. Le matchScore et les matchReasons doivent refléter ces priorités
-${profile.sportActivities.length > 0 ? '- IMPORTANT : Activités sportives : ' + profile.sportActivities.join(', ') + '. Les destinations DOIVENT proposer ces activités. Mentionne les spots dans highlights et matchReasons. (mountain_walk = balades tranquilles en montagne, hiking = randonnée en montagne/nature, climbing = escalade/via ferrata, trail = trail/running, ski = ski/snowboard, mtb = VTT, cycling = vélo route, surf = surf, windsurf = windsurf/wingfoil, watersports = sports nautiques, diving = plongée/snorkeling, paragliding = parapente, skydiving = parachute/ULM, kayak = kayak/canoë/rafting)' : ''}
-
-HÉBERGEMENT :
-- Types souhaités : ${profile.accommodation.length > 0 ? profile.accommodation.join(', ') : 'non précisé'}. Adapte le budget et les suggestions en conséquence
-
-CONTRAINTES :
-${profile.constraints.length > 0 ? '- Contraintes : ' + profile.constraints.join(', ') + '. RESPECTER impérativement (PMR → accessibilité, végétarien → offre locale, noaltitude → pas de haute altitude, noheat → pas de canicule)' : '- Aucune contrainte particulière'}
-
-LANGUE :
-- Préférence langue : ${profile.language || 'any'}${profile.language === 'french' ? '. Privilégie les pays francophones ou DOM-TOM' : profile.language === 'english' ? '. Pays où l\'anglais est largement parlé' : profile.language === 'nearby' ? '. Culture proche de la France, pas trop dépaysant' : ''}
-
-FORMAT :
-- matchScore entre 70 et 99, la première destination doit avoir le meilleur score
+═══ FORMAT ═══
+- matchScore entre 70 et 99${plural ? ', la première destination a le meilleur score' : ''}
+- flightDuration : durée lisible du trajet aller (ex : "3h30", "2h45 (1 escale)")
+- Warnings pertinents pour cette période (météo, saison des pluies, haute saison, prix des fêtes…)
 - waterTemp peut être null si pas de mer
-- countryCode = code ISO 2 lettres du pays (ex: "GR", "ES", "TH")
-- IMPORTANT : Pense aussi aux territoires d'outre-mer français (Martinique, Guadeloupe, Réunion, Nouvelle-Calédonie, Polynésie, Guyane, Mayotte). Utilise "MQ", "GP", "RE", "NC", "PF", "GF", "YT". Ce ne sont PAS la même chose que la France métropolitaine (FR).
-- Varie les destinations : propose des destinations originales et diversifiées, pas toujours les mêmes classiques
+- countryCode = code ISO 2 lettres (ex : "GR", "ES", "TH"). Outre-mer français : "MQ", "GP", "RE", "NC", "PF", "GF", "YT" (pas "FR")
+- Propose des destinations originales et diversifiées, pas toujours les mêmes classiques
 
 Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks.`;
-
-  const content = await callClaude(prompt);
-
-  try {
-    const parsed = JSON.parse(content);
-    return parsed.destinations;
-  } catch {
-    const match = content.match(/\{[\s\S]*\}/);
-    if (match) {
-      const parsed = JSON.parse(match[0]);
-      return parsed.destinations;
-    }
-    throw new Error('Failed to parse destinations from Claude response');
-  }
 }
 
-export async function generateOneDestination(
+async function requestDestinations(
   profile: TravelProfile,
-  excludeCountryCodes: string[]
-): Promise<Destination> {
-  const budgetGuide: Record<string, string> = {
-    tight: 'SERRÉ — max 50€/jour/personne (hébergement + repas + activités, hors vol). Privilégie les destinations pas chères : Balkans, Asie du Sud-Est, Maroc, Tunisie, Europe de l\'Est, etc.',
-    moderate: 'MODÉRÉ — 50-120€/jour/personne. Bon rapport qualité/prix.',
-    comfort: 'CONFORT — 120-250€/jour/personne. Hôtels de qualité, restaurants, expériences.',
-    unlimited: 'SANS LIMITE — pas de contrainte budgétaire. Propose du haut de gamme.',
-  };
-
-  const budgetInstruction = budgetGuide[profile.budget || 'moderate'] || budgetGuide.moderate;
-  const allExcluded = Array.from(new Set([...profile.visited, ...excludeCountryCodes]));
-
-  const prompt = `Tu es un expert voyagiste francophone. Voici le profil du voyageur :
-${JSON.stringify(profile, null, 2)}
-
-BUDGET : ${budgetInstruction}
-
-Génère EXACTEMENT 1 seule destination de remplacement en JSON avec cette structure :
-{
-  "destination": {
-    "id": "slug-unique",
-    "country": "Nom du pays",
-    "countryCode": "XX",
-    "city": "Nom de la ville/région",
-    "flag": "emoji drapeau",
-    "matchScore": 98,
-    "matchReasons": ["Raison 1", "Raison 2", "Raison 3"],
-    "budget": { "min": 860, "max": 1050, "currency": "EUR", "includes": "vol + hôtel X nuits" },
-    "flightDuration": "3h30",
-    "flightType": "direct",
-    "airTemp": 32,
-    "waterTemp": 26,
-    "visaRequired": false,
-    "mainLanguage": "Langue locale / Anglais",
-    "warnings": [
-      { "level": "orange", "text": "Warning text" },
-      { "level": "green", "text": "Positive note" }
-    ],
-    "pills": ["Pas de visa", "Vol direct", "Mer chaude"],
-    "highlights": ["Highlight 1", "Highlight 2", "Highlight 3", "Highlight 4"],
-    "bookingLinks": {
-      "flights": "https://www.skyscanner.fr/",
-      "hotels": "https://www.booking.com/",
-      "activities": "https://www.getyourguide.fr/"
-    }
-  }
+  count: number,
+  excludedCodes: string[],
+  rejected: Rejection[]
+): Promise<Destination[]> {
+  const content = await callClaude(buildDestinationsPrompt(profile, count, excludedCodes, rejected));
+  const parsed = parseJson(content) as { destinations?: Destination[]; destination?: Destination };
+  if (Array.isArray(parsed.destinations)) return parsed.destinations;
+  if (parsed.destination) return [parsed.destination];
+  throw new Error('Aucune destination dans la réponse de Claude');
 }
 
-Règles STRICTES — TOUS les critères du profil doivent être respectés :
+export interface DestinationsResult {
+  destinations: Destination[];
+  rejected: Rejection[];
+}
 
-EXCLUSIONS :
-- La destination NE DOIT PAS être dans cette liste de pays exclus : ${allExcluded.join(', ')}
+const MAX_RETRIES = 2;
 
-PÉRIODE & DURÉE :
-- Mois de voyage : ${profile.month}${profile.monthHalf ? (profile.monthHalf === '1' ? ' (première quinzaine)' : ' (deuxième quinzaine)') : ''} ${profile.year}
-- Durée : ${profile.nights} nuits. Le budget.min et budget.max = budget TOTAL par personne pour cette durée, vol inclus
-- Warnings pertinents pour cette période (météo, saison des pluies, haute saison, etc.)
+/**
+ * Demande `count` destinations à Claude, rejette celles qui ne respectent pas
+ * les contraintes éliminatoires, et relance Claude (2 fois max) avec la liste
+ * des refus et leur raison.
+ */
+export async function generateValidDestinations(
+  profile: TravelProfile,
+  count = 3,
+  excludedCodes: string[] = []
+): Promise<DestinationsResult> {
+  const valid: Destination[] = [];
+  const rejected: Rejection[] = [];
+  const seen = new Set(excludedCodes.map((c) => c.toUpperCase()));
 
-BUDGET :
-- IMPORTANT : Le budget TOTAL (vol + hébergement + repas + activités) doit RESPECTER le niveau choisi (${profile.budget}). ${budgetInstruction}
-
-CONTEXTE & GROUPE :
-- Type de voyage : ${profile.tripContext || 'non précisé'}. Adapte l'ambiance (ex: honeymoon → romantique, friends → festif, workation → bon wifi)
-- Groupe : ${profile.group || 'non précisé'}${profile.kidsAges.length > 0 ? '. Enfants : ' + profile.kidsAges.join(', ') + ' — destination adaptée aux familles, sécurité, activités enfants' : ''}
-- Style : ${profile.travelStyle === 'moving' ? 'circuit multi-étapes' : 'base fixe'}
-
-TRANSPORT & DÉPART :
-- Ville de départ : ${profile.departureCity}. La durée de vol (flightDuration) doit être calculée DEPUIS cette ville
-- Transports acceptés : ${profile.transport.join(', ')}. Ne propose QUE des destinations accessibles avec ces modes de transport
-${profile.transport.some((t: string) => ['car', 'train', 'ferry'].includes(t)) && !profile.transport.includes('plane') ? `- CONTRAINTE TEMPS DE TRAJET (voiture/train/ferry) : le trajet ALLER depuis ${profile.departureCity} ne doit PAS dépasser ${profile.nights === '10+' ? '8h' : '4h'}. C'est une règle STRICTE. Privilégie les destinations proches.` : profile.transport.some((t: string) => ['car', 'train', 'ferry'].includes(t)) && profile.transport.includes('plane') ? `- CONSEIL TEMPS DE TRAJET : si la destination est accessible en voiture/train/ferry, le trajet ALLER depuis ${profile.departureCity} ne devrait pas dépasser ${profile.nights === '10+' ? '8h' : '4h'}. Pour les destinations plus lointaines, privilégie l'avion.` : ''}
-
-AMBIANCE & ENVIRONNEMENT :
-- Ambiances souhaitées : ${profile.vibe.join(', ')}. La destination DOIT correspondre à ces ambiances
-${profile.waterTemp && profile.waterTemp !== 'any' ? '- Température de l\'eau souhaitée : ' + profile.waterTemp + '. Adapte la destination balnéaire en conséquence' : ''}
-- Climat souhaité : ${profile.climate.length > 0 ? profile.climate.join(', ') : 'non précisé'}. La destination doit correspondre à AU MOINS UN de ces climats pour la période choisie
-
-PRIORITÉS & ACTIVITÉS :
-- Priorités du voyageur : ${profile.priority.join(', ')}. Le matchScore et les matchReasons doivent refléter ces priorités
-${profile.sportActivities.length > 0 ? '- IMPORTANT : Activités sportives : ' + profile.sportActivities.join(', ') + '. La destination DOIT proposer ces activités. Mentionne les spots dans highlights et matchReasons. (mountain_walk = balades tranquilles en montagne, hiking = randonnée en montagne/nature, climbing = escalade/via ferrata, trail = trail/running, ski = ski/snowboard, mtb = VTT, cycling = vélo route, surf = surf, windsurf = windsurf/wingfoil, watersports = sports nautiques, diving = plongée/snorkeling, paragliding = parapente, skydiving = parachute/ULM, kayak = kayak/canoë/rafting)' : ''}
-
-HÉBERGEMENT :
-- Types souhaités : ${profile.accommodation.length > 0 ? profile.accommodation.join(', ') : 'non précisé'}. Adapte le budget et les suggestions en conséquence
-
-CONTRAINTES :
-${profile.constraints.length > 0 ? '- Contraintes : ' + profile.constraints.join(', ') + '. RESPECTER impérativement (PMR → accessibilité, végétarien → offre locale, noaltitude → pas de haute altitude, noheat → pas de canicule)' : '- Aucune contrainte particulière'}
-
-LANGUE :
-- Préférence langue : ${profile.language || 'any'}${profile.language === 'french' ? '. Privilégie les pays francophones ou DOM-TOM' : profile.language === 'english' ? '. Pays où l\'anglais est largement parlé' : profile.language === 'nearby' ? '. Culture proche de la France, pas trop dépaysant' : ''}
-
-FORMAT :
-- matchScore entre 70 et 99
-- waterTemp peut être null si pas de mer
-- countryCode = code ISO 2 lettres du pays (ex: "GR", "ES", "TH")
-- IMPORTANT : Pense aussi aux territoires d'outre-mer français. Utilise "MQ", "GP", "RE", "NC", "PF", "GF", "YT". Ce ne sont PAS la même chose que la France métropolitaine (FR).
-- Varie : propose une destination originale et diversifiée, pas les classiques
-
-Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks.`;
-
-  const content = await callClaude(prompt);
-
-  try {
-    const parsed = JSON.parse(content);
-    return parsed.destination;
-  } catch {
-    const match = content.match(/\{[\s\S]*\}/);
-    if (match) {
-      const parsed = JSON.parse(match[0]);
-      return parsed.destination;
+  for (let attempt = 0; attempt <= MAX_RETRIES && valid.length < count; attempt++) {
+    const exclude = Array.from(seen);
+    let batch: Destination[];
+    try {
+      batch = await requestDestinations(profile, count - valid.length, exclude, rejected);
+    } catch (err) {
+      if (attempt === 0 && valid.length === 0) throw err;
+      console.error('Relance Claude échouée :', err);
+      break;
     }
-    throw new Error('Failed to parse destination from Claude response');
+
+    for (const d of batch) {
+      if (valid.length >= count) break;
+      const rejection = checkDestination(profile, d, exclude);
+      if (rejection) {
+        if (rejection.kind !== 'excluded') rejected.push(rejection);
+        console.warn(`[filtre] ${d.city}, ${d.country} rejetée : ${rejection.reason}`);
+        continue;
+      }
+      valid.push(d);
+      seen.add((d.countryCode || '').toUpperCase());
+    }
   }
+
+  // Ids uniques (Claude peut renvoyer le même slug d'un appel à l'autre)
+  const ids = new Set<string>();
+  for (const d of valid) {
+    if (!d.id || ids.has(d.id)) d.id = `${d.id || 'dest'}-${ids.size + 1}`;
+    ids.add(d.id);
+  }
+
+  return { destinations: valid, rejected };
 }
 
 export async function generateItinerary(

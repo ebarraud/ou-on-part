@@ -26,6 +26,8 @@ export interface TravelProfile {
   departureLat?: number;
   departureLng?: number;
   transport: ('plane' | 'train' | 'car' | 'ferry')[];
+  // Distance de vol acceptée (multi) — vide = limite par défaut selon la durée du séjour
+  flightRange?: ('short' | 'medium' | 'long')[];
 
   // Ambiance
   vibe: ('sea' | 'mountain' | 'city' | 'nature' | 'culture' | 'food')[];
@@ -86,6 +88,7 @@ export interface Destination {
     includes: string;
   };
   flightDuration: string;
+  travelHours?: number; // durée du trajet principal aller, en heures décimales
   flightType: string;
   airTemp: number;
   waterTemp: number | null;
