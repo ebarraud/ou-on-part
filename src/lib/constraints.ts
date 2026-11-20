@@ -177,3 +177,28 @@ export function buildRelaxSuggestions(profile: TravelProfile, rejections: Reject
 
   return suggestions;
 }
+
+/** Les destinations refusées les plus proches des critères, avec la raison en alerte rouge. */
+export function closestMisses(profile: TravelProfile, rejected: Rejection[]): Destination[] {
+  const cap = getBudgetCap(profile);
+  const maxHours = getMaxTravelHours(profile);
+  const score = (r: Rejection) =>
+    r.kind === 'budget'
+      ? r.overshoot / (isFinite(cap) ? cap : 1)
+      : r.overshoot / (isFinite(maxHours) ? maxHours : 1);
+  const seen = new Set<string>();
+  return [...rejected]
+    .filter((r) => r.kind !== 'excluded')
+    .sort((a, b) => score(a) - score(b))
+    .filter((r) => {
+      const key = r.destination.countryCode + r.destination.city;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 3)
+    .map((r) => ({
+      ...r.destination,
+      warnings: [{ level: 'red' as const, text: `Hors critères : ${r.reason}` }, ...(r.destination.warnings || [])],
+    }));
+}

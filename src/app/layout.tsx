@@ -48,7 +48,7 @@ export default function RootLayout({
         <main className="max-w-lg mx-auto">
           {children}
         </main>
-        <CreditCounter />
+        {process.env.NODE_ENV === 'development' && <CreditCounter />}
         <InstallPrompt />
       </body>
     </html>

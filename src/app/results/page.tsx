@@ -2,44 +2,14 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useTravelStore } from '@/lib/store';
-import { generateValidDestinations } from '@/lib/claude';
+import { useHydrated, useTravelStore } from '@/lib/store';
+import { replaceDestination, searchDestinations, startCheckout, unlockResults } from '@/lib/api';
 import { getDisplayedBudget } from '@/lib/budget';
-import {
-  buildRelaxSuggestions,
-  describeCriteria,
-  getBudgetCap,
-  getMaxTravelHours,
-  type Rejection,
-} from '@/lib/constraints';
+import { describeCriteria } from '@/lib/constraints';
 import type { Destination } from '@/lib/types';
 import DestinationCard from '@/components/results/DestinationCard';
 import PriceDisclaimer from '@/components/results/PriceDisclaimer';
-
-// Les destinations refusées les plus proches des critères, avec la raison en alerte rouge
-function closestMisses(profile: Parameters<typeof getBudgetCap>[0], rejected: Rejection[]): Destination[] {
-  const cap = getBudgetCap(profile);
-  const maxHours = getMaxTravelHours(profile);
-  const score = (r: Rejection) =>
-    r.kind === 'budget' ? r.overshoot / (isFinite(cap) ? cap : 1) : r.overshoot / (isFinite(maxHours) ? maxHours : 1);
-  const seen = new Set<string>();
-  return [...rejected]
-    .sort((a, b) => score(a) - score(b))
-    .filter((r) => {
-      const key = r.destination.countryCode + r.destination.city;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    })
-    .slice(0, 3)
-    .map((r) => ({
-      ...r.destination,
-      warnings: [
-        { level: 'red' as const, text: `Hors critères : ${r.reason}` },
-        ...(r.destination.warnings || []),
-      ],
-    }));
-}
+import LockedResults from '@/components/results/LockedResults';
 
 export default function ResultsPage() {
   const router = useRouter();
@@ -48,6 +18,14 @@ export default function ResultsPage() {
     setField,
     destinations,
     setDestinations,
+    nearMisses,
+    suggestions,
+    setOutcome,
+    lockedSearch,
+    setLockedSearch,
+    unlock,
+    setUnlock,
+    clearResults,
     setSelectedDestination,
     isGenerating,
     setIsGenerating,
@@ -55,77 +33,104 @@ export default function ResultsPage() {
 
   const [error, setError] = useState<string | null>(null);
   const [replacingIndex, setReplacingIndex] = useState<number | null>(null);
-  const [nearMisses, setNearMisses] = useState<Destination[]>([]);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [paying, setPaying] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
+  const [unlocking, setUnlocking] = useState(false);
   const hasStarted = useRef(false);
+  const hydrated = useHydrated();
 
-  const generate = (overrideProfile?: typeof profile) => {
-    const p = overrideProfile || profile;
+  const unlockToken = unlock && unlock.expiresAt > Date.now() ? unlock.token : undefined;
+
+  const generate = () => {
     setIsGenerating(true);
     setError(null);
-    setNearMisses([]);
-    setSuggestions([]);
+    clearResults();
 
-    generateValidDestinations(p, 3)
-      .then(({ destinations: valid, rejected }) => {
-        setDestinations(valid);
-        if (valid.length < 3) {
-          setSuggestions(buildRelaxSuggestions(p, rejected));
-        }
-        if (valid.length === 0) {
-          setNearMisses(closestMisses(p, rejected));
+    searchDestinations(profile)
+      .then((res) => {
+        if (res.locked) {
+          setLockedSearch(res.search);
+        } else {
+          setDestinations(res.destinations);
+          setOutcome({ nearMisses: res.nearMisses, suggestions: res.suggestions });
         }
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
         console.error('Failed to generate destinations:', err);
-        setError(String(err));
+        setError(err instanceof Error ? err.message : String(err));
       })
-      .finally(() => {
-        setIsGenerating(false);
-      });
+      .finally(() => setIsGenerating(false));
+  };
+
+  // Retour de Stripe : on vérifie le paiement et on déverrouille
+  const tryUnlock = async (sessionId: string) => {
+    const locked = useTravelStore.getState().lockedSearch;
+    window.history.replaceState(null, '', '/results');
+    if (!locked) return;
+    setUnlocking(true);
+    try {
+      const res = await unlockResults(sessionId, locked.sealed);
+      setDestinations(res.destinations);
+      setOutcome({ nearMisses: res.nearMisses, suggestions: res.suggestions });
+      setUnlock({ token: res.token, searchId: res.searchId, expiresAt: res.expiresAt });
+      setLockedSearch(null);
+    } catch (err) {
+      setPayError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setUnlocking(false);
+    }
   };
 
   useEffect(() => {
-    if (destinations.length > 0 || isGenerating || hasStarted.current) return;
+    if (!hydrated || hasStarted.current) return;
+    hasStarted.current = true;
+
+    const sessionId = new URLSearchParams(window.location.search).get('session_id');
+    if (sessionId) {
+      tryUnlock(sessionId);
+      return;
+    }
+    if (destinations.length > 0 || nearMisses.length > 0 || lockedSearch || isGenerating) return;
     if (!profile.month) {
       router.push('/');
       return;
     }
-
-    hasStarted.current = true;
     generate();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [hydrated]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleRetry = () => {
-    hasStarted.current = false;
-    generate();
+  const handleRetry = () => generate();
+
+  const handlePay = async () => {
+    if (!lockedSearch) return;
+    setPaying(true);
+    setPayError(null);
+    try {
+      const { url } = await startCheckout(lockedSearch.sealed);
+      window.location.href = url;
+    } catch (err) {
+      setPayError(err instanceof Error ? err.message : String(err));
+      setPaying(false);
+    }
   };
 
   const handleReject = (countryCode: string) => {
-    // Add rejected country to visited list
     const newVisited = [...profile.visited];
-    if (!newVisited.includes(countryCode)) {
-      newVisited.push(countryCode);
-    }
+    if (!newVisited.includes(countryCode)) newVisited.push(countryCode);
     setField('visited', newVisited);
 
-    // Find index of rejected destination
-    const rejectedIndex = destinations.findIndex(
-      (d) => d.countryCode === countryCode
-    );
+    const rejectedIndex = destinations.findIndex((d) => d.countryCode === countryCode);
     if (rejectedIndex === -1) return;
 
     setReplacingIndex(rejectedIndex);
     setError(null);
 
-    // Exclude visited + all currently displayed countries
     const allDisplayedCodes = destinations.map((d) => d.countryCode);
     const updatedProfile = { ...profile, visited: newVisited };
 
-    generateValidDestinations(updatedProfile, 1, allDisplayedCodes)
-      .then(({ destinations: found }) => {
+    replaceDestination(updatedProfile, allDisplayedCodes, unlockToken)
+      .then((res) => {
+        const found = res.locked ? [] : res.destinations;
         if (found.length === 0) {
-          // Aucune remplaçante ne respecte les critères : on retire la carte
           setDestinations(destinations.filter((_, i) => i !== rejectedIndex));
           return;
         }
@@ -135,12 +140,9 @@ export default function ResultsPage() {
       })
       .catch((err) => {
         console.error('Failed to generate replacement:', err);
-        // Fallback: remove the rejected card
         setDestinations(destinations.filter((_, i) => i !== rejectedIndex));
       })
-      .finally(() => {
-        setReplacingIndex(null);
-      });
+      .finally(() => setReplacingIndex(null));
   };
 
   const handleSelect = (dest: Destination) => {
@@ -155,6 +157,12 @@ export default function ResultsPage() {
         <h1 className="text-2xl font-bold text-gray-900">
           {isGenerating
             ? '✨ On cherche...'
+            : unlocking
+              ? '🔓 Vérification du paiement...'
+              : lockedSearch
+                ? lockedSearch.noMatch
+                  ? '🤔 Rien ne colle parfaitement'
+                  : `${lockedSearch.teasers.length} destination${lockedSearch.teasers.length > 1 ? 's' : ''} pour toi`
             : error
               ? '😕 Oups...'
               : destinations.length === 0 && nearMisses.length > 0
@@ -196,6 +204,31 @@ export default function ResultsPage() {
             🔄 Réessayer
           </button>
         </div>
+      )}
+
+      {/* Résultats verrouillés (paywall) */}
+      {!isGenerating && !unlocking && !error && lockedSearch && (
+        <>
+          {lockedSearch.noMatch && (
+            <div className="text-sm text-gray-800 bg-amber-50 border border-amber-200 rounded-btn px-4 py-3 mb-4">
+              <p className="font-semibold">{describeCriteria(profile)}, aucune destination ne respecte tous tes critères.</p>
+              {lockedSearch.suggestions.length > 0 && (
+                <p className="mt-2 text-xs text-gray-600">Pour trouver mieux : {lockedSearch.suggestions.join(', ou ')}.</p>
+              )}
+            </div>
+          )}
+          <LockedResults search={lockedSearch} onPay={handlePay} paying={paying} error={payError} />
+        </>
+      )}
+
+      {unlocking && (
+        <div className="flex-1 flex flex-col items-center justify-center gap-4">
+          <div className="w-12 h-12 border-4 border-primary-light border-t-primary rounded-full animate-spin" />
+        </div>
+      )}
+
+      {!lockedSearch && payError && !unlocking && (
+        <p className="text-sm text-red-600 bg-red-50 rounded-btn px-4 py-3 mb-4">{payError}</p>
       )}
 
       {/* Results */}
@@ -266,7 +299,7 @@ export default function ResultsPage() {
       )}
 
       {/* Aucun résultat du tout */}
-      {!isGenerating && !error && destinations.length === 0 && nearMisses.length === 0 && hasStarted.current && (
+      {!isGenerating && !unlocking && !error && !lockedSearch && destinations.length === 0 && nearMisses.length === 0 && hasStarted.current && (
         <div className="flex-1 flex flex-col items-center justify-center gap-4">
           <p className="text-sm text-gray-600 text-center">Aucune destination trouvée pour ces critères.</p>
           <button
@@ -282,8 +315,7 @@ export default function ResultsPage() {
       {!isGenerating && (
         <button
           onClick={() => {
-            setDestinations([]);
-            hasStarted.current = false;
+            clearResults();
             router.push('/flow');
           }}
           className="mt-6 text-sm text-gray-500 hover:text-primary underline self-center"

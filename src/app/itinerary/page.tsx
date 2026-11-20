@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useTravelStore } from '@/lib/store';
-import { generateItinerary, generateRoute } from '@/lib/claude';
+import { useHydrated, useTravelStore } from '@/lib/store';
+import { fetchItinerary } from '@/lib/api';
 
 export default function ItineraryPage() {
   const router = useRouter();
@@ -16,27 +16,34 @@ export default function ItineraryPage() {
     setRoute,
     isGenerating,
     setIsGenerating,
+    unlock,
   } = useTravelStore();
+  const [error, setError] = useState<string | null>(null);
+  const hydrated = useHydrated();
 
   const isMoving = profile.travelStyle === 'moving';
 
   useEffect(() => {
-    if (itinerary || route || isGenerating) return;
+    if (!hydrated || itinerary || route || isGenerating) return;
     if (!selectedDestination) {
       router.push('/results');
       return;
     }
 
+    if (error) return;
     setIsGenerating(true);
 
-    const generate = isMoving
-      ? generateRoute(profile, selectedDestination).then(setRoute)
-      : generateItinerary(profile, selectedDestination).then(setItinerary);
-
-    generate
-      .catch((err) => console.error('Failed to generate:', err))
+    fetchItinerary(profile, selectedDestination, unlock?.token)
+      .then((res) => {
+        if (res.route) setRoute(res.route);
+        if (res.itinerary) setItinerary(res.itinerary);
+      })
+      .catch((err: unknown) => {
+        console.error('Failed to generate:', err);
+        setError(err instanceof Error ? err.message : String(err));
+      })
       .finally(() => setIsGenerating(false));
-  }, [profile, selectedDestination, itinerary, route, isGenerating, isMoving, setItinerary, setRoute, setIsGenerating, router]);
+  }, [profile, selectedDestination, itinerary, route, isGenerating, isMoving, setItinerary, setRoute, setIsGenerating, router, unlock, error, hydrated]);
 
   // =============================================
   // Loading
@@ -50,6 +57,20 @@ export default function ItineraryPage() {
             ? "L'IA conçoit ton circuit multi-étapes..."
             : "L'IA construit ton itinéraire jour par jour..."}
         </p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen px-4 gap-4">
+        <p className="text-sm text-red-600 text-center bg-red-50 rounded-btn px-4 py-3">{error}</p>
+        <button
+          onClick={() => router.push('/results')}
+          className="px-6 py-3 rounded-btn font-semibold text-sm bg-primary text-white"
+        >
+          Retour aux résultats
+        </button>
       </div>
     );
   }

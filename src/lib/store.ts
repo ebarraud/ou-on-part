@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { TravelProfile, Destination, Itinerary, Route } from './types';
+import type { LockedSearch } from './api-types';
 
 const initialProfile: TravelProfile = {
   month: '',
@@ -41,6 +43,16 @@ interface TravelStore {
   // Results
   destinations: Destination[];
   setDestinations: (d: Destination[]) => void;
+  nearMisses: Destination[];
+  suggestions: string[];
+  setOutcome: (o: { nearMisses: Destination[]; suggestions: string[] }) => void;
+
+  // Paywall
+  lockedSearch: LockedSearch | null;
+  setLockedSearch: (s: LockedSearch | null) => void;
+  unlock: { token: string; searchId: string; expiresAt: number } | null;
+  setUnlock: (u: { token: string; searchId: string; expiresAt: number } | null) => void;
+  clearResults: () => void;
   selectedDestination: Destination | null;
   setSelectedDestination: (d: Destination | null) => void;
 
@@ -73,6 +85,9 @@ export const useTravelStore = create<TravelStore>()(
         profile: { ...initialProfile, visited: state.profile.visited },
         currentStep: 0,
         destinations: [],
+        nearMisses: [],
+        suggestions: [],
+        lockedSearch: null,
         selectedDestination: null,
         itinerary: null,
         route: null,
@@ -83,6 +98,24 @@ export const useTravelStore = create<TravelStore>()(
 
       destinations: [],
       setDestinations: (d) => set({ destinations: d }),
+      nearMisses: [],
+      suggestions: [],
+      setOutcome: (o) => set({ nearMisses: o.nearMisses, suggestions: o.suggestions }),
+
+      lockedSearch: null,
+      setLockedSearch: (s) => set({ lockedSearch: s }),
+      unlock: null,
+      setUnlock: (u) => set({ unlock: u }),
+      clearResults: () =>
+        set({
+          destinations: [],
+          nearMisses: [],
+          suggestions: [],
+          lockedSearch: null,
+          selectedDestination: null,
+          itinerary: null,
+          route: null,
+        }),
       selectedDestination: null,
       setSelectedDestination: (d) => set({ selectedDestination: d }),
 
@@ -110,6 +143,10 @@ export const useTravelStore = create<TravelStore>()(
         profile: state.profile,
         currentStep: state.currentStep,
         destinations: state.destinations,
+        nearMisses: state.nearMisses,
+        suggestions: state.suggestions,
+        lockedSearch: state.lockedSearch,
+        unlock: state.unlock,
         selectedDestination: state.selectedDestination,
         itinerary: state.itinerary,
         route: state.route,
@@ -120,3 +157,15 @@ export const useTravelStore = create<TravelStore>()(
     }
   )
 );
+
+// Vrai une fois l'état restauré depuis le stockage du navigateur (indispensable au retour de Stripe,
+// qui recharge la page : sans ça, la recherche verrouillée n'est pas encore connue).
+export function useHydrated(): boolean {
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    const unsub = useTravelStore.persist.onFinishHydration(() => setHydrated(true));
+    if (useTravelStore.persist.hasHydrated()) setHydrated(true);
+    return unsub;
+  }, []);
+  return hydrated;
+}

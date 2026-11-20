@@ -1,9 +1,9 @@
-import type { TravelProfile, Destination, Itinerary, Route } from './types';
-import { useTravelStore } from './store';
-import { getDepartureIata } from './airports';
-import { getDates, getPassengers } from './booking-links';
-import { formatRange, getNightsCount, hasExactDates } from './dates';
-import { getBudgetMultiplier, isHolidayPeak } from './budget';
+import 'server-only';
+import type { TravelProfile, Destination, Itinerary, Route } from '../types';
+import { getDepartureIata } from '../airports';
+import { getDates, getPassengers } from '../booking-links';
+import { formatRange, getNightsCount, hasExactDates } from '../dates';
+import { getBudgetMultiplier, isHolidayPeak } from '../budget';
 import {
   checkDestination,
   formatHours,
@@ -11,32 +11,35 @@ import {
   getBudgetCap,
   getMaxTravelHours,
   type Rejection,
-} from './constraints';
+} from '../constraints';
+import { flightPriceFromParams } from './flights';
+import { ferryFromParams } from './ferry';
 
+const MODEL = 'claude-sonnet-4-5';
+
+// Appel direct à l'API Claude, côté serveur uniquement (la clé ne quitte jamais le serveur)
 async function callClaude(prompt: string): Promise<string> {
-  const res = await fetch('/api/claude', {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY non configurée');
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt }),
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({ model: MODEL, max_tokens: 4096, messages: [{ role: 'user', content: prompt }] }),
+    cache: 'no-store',
   });
-
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || `Claude API error: ${res.status}`);
+    const text = await res.text();
+    console.error('[claude] erreur', res.status, text.slice(0, 500));
+    throw new Error(`Le service IA est indisponible (${res.status}). Réessaie dans un instant.`);
   }
-
   const data = await res.json();
-
-  // Track usage
-  if (data.usage) {
-    useTravelStore.getState().addUsage(
-      data.usage.cost || 0,
-      data.usage.inputTokens || 0,
-      data.usage.outputTokens || 0
-    );
-  }
-
-  return data.content;
+  const usage = data.usage || {};
+  console.log(`[claude] ${usage.input_tokens || 0} in / ${usage.output_tokens || 0} out`);
+  return data.content?.[0]?.text || '';
 }
 
 const BUDGET_STYLE: Record<string, string> = {
@@ -225,9 +228,7 @@ async function attachFlightPrices(profile: TravelProfile, batch: Destination[]):
           qs.set('half', profile.monthHalf);
         }
         if (isFinite(maxHours)) qs.set('maxHours', String(maxHours));
-        const res = await fetch(`/api/flight-prices?${qs}`);
-        if (!res.ok) return;
-        const data = await res.json();
+        const { body: data } = await flightPriceFromParams(qs);
         if (data.found && data.price > 0) {
           d.flightPrice = {
             price: data.price,
@@ -272,9 +273,7 @@ async function attachFerryPrices(profile: TravelProfile, batch: Destination[]): 
           passengers: String(passengers),
           vehicle: profile.transport.includes('car') ? '1' : '0',
         });
-        const res = await fetch(`/api/ferry?${qs}`);
-        if (!res.ok) return;
-        const data = await res.json();
+        const { body: data } = await ferryFromParams(qs);
         if (data.found && data.price > 0) {
           f.real = {
             price: data.price,
@@ -298,6 +297,7 @@ export interface DestinationsResult {
 }
 
 const MAX_RETRIES = 2;
+const RETRY_DEADLINE_MS = 28_000;
 
 /**
  * Demande `count` destinations à Claude, rejette celles qui ne respectent pas
@@ -312,8 +312,11 @@ export async function generateValidDestinations(
   const valid: Destination[] = [];
   const rejected: Rejection[] = [];
   const seen = new Set(excludedCodes.map((c) => c.toUpperCase()));
+  const start = Date.now();
 
   for (let attempt = 0; attempt <= MAX_RETRIES && valid.length < count; attempt++) {
+    // Pas de relance si elle risque de dépasser la durée max d'une fonction serveur (60 s)
+    if (attempt > 0 && Date.now() - start > RETRY_DEADLINE_MS) break;
     const exclude = Array.from(seen);
     let batch: Destination[];
     try {
