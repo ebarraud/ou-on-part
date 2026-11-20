@@ -7,6 +7,7 @@ import { formatShortRange } from '@/lib/dates';
 import { getSkyscannerLink, getBookingLink, getGetYourGuideLink } from '@/lib/booking-links';
 import WarningBadge from '@/components/results/WarningBadge';
 import PriceDisclaimer from '@/components/results/PriceDisclaimer';
+import FerryLine from '@/components/results/FerryLine';
 
 export default function DestinationPage() {
   const router = useRouter();
@@ -86,6 +87,12 @@ export default function DestinationPage() {
               {adjustedBudget.min.toLocaleString('fr-FR')}€ – {adjustedBudget.max.toLocaleString('fr-FR')}€
             </p>
           </div>
+          {dest.ferry && (
+            <div className="col-span-2">
+              <p className="text-xs text-gray-400">Traversée en ferry</p>
+              <FerryLine ferry={dest.ferry} className="text-sm" />
+            </div>
+          )}
           <div className="col-span-2">
             <p className="text-xs text-gray-400">Vol aller-retour</p>
             {dest.flightAlternative && (
@@ -161,6 +168,22 @@ export default function DestinationPage() {
         {/* Booking links — pre-filled from profile */}
         <div className="mb-6 space-y-2">
           <h2 className="text-lg font-bold text-gray-900 mb-3">Réserver</h2>
+          {dest.ferry?.real?.link && (
+            <a
+              href={dest.ferry.real.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 rounded-btn border border-teal-200 bg-teal-50 px-4 py-3 hover:bg-teal-100 transition-colors"
+            >
+              <span className="text-xl">⛴️</span>
+              <span className="text-sm font-medium">
+                Traversées {dest.ferry.fromPort} → {dest.ferry.toPort} sur Ferryhopper
+                <span className="block text-xs font-normal text-gray-500">
+                  Vu dès {dest.ferry.real.price.toLocaleString('fr-FR')}€/pers. — le prix peut avoir changé
+                </span>
+              </span>
+            </a>
+          )}
           {!dest.flightPrice?.link && dest.flightSearchLink && (
             <a
               href={dest.flightSearchLink}

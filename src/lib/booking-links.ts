@@ -2,7 +2,7 @@ import type { TravelProfile, Destination } from './types';
 import { getDepartureIata } from './airports';
 
 // Estimate check-in / check-out dates from profile
-function getDates(profile: TravelProfile): { checkin: string; checkout: string } {
+export function getDates(profile: TravelProfile): { checkin: string; checkout: string } {
   if (profile.startDate && profile.endDate) {
     return { checkin: profile.startDate, checkout: profile.endDate };
   }

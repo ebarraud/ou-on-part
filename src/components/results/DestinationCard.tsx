@@ -5,6 +5,7 @@ import { getCarCostLine } from '@/lib/transport';
 import WarningBadge from './WarningBadge';
 import BudgetRange from './BudgetRange';
 import { formatShortRange } from '@/lib/dates';
+import FerryLine from './FerryLine';
 
 interface DestinationCardProps {
   destination: Destination;
@@ -76,6 +77,7 @@ export default function DestinationCard({
             ) : null}
           </div>
         )}
+        {d.ferry && <FerryLine ferry={d.ferry} className="mb-1" />}
         {d.flightAlternative && (
           <div className="text-xs text-sky-700 mb-1">
             💡 {d.flightAlternative.price.toLocaleString('fr-FR')}€/pers. en partant du{' '}

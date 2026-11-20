@@ -53,16 +53,31 @@ export function calculateBudget(
  */
 export function getDisplayedBudget(
   profile: TravelProfile,
-  d: Pick<Destination, 'budget' | 'flightPrice'>
+  d: Pick<Destination, 'budget' | 'flightPrice' | 'ferry'>
 ): { min: number; max: number; realFlight: boolean } {
-  const real = d.flightPrice?.price;
-  const estimate = d.budget.flight;
-  if (real && real > 0 && estimate && estimate > 0 && estimate < d.budget.max) {
+  // Parts « réelles » : on retire l'estimation de Claude et on ajoute le prix vu (non majoré)
+  let removed = 0;
+  let added = 0;
+  let realFlight = false;
+  const flightReal = d.flightPrice?.price;
+  const flightEst = d.budget.flight;
+  if (flightReal && flightReal > 0 && flightEst && flightEst > 0) {
+    removed += flightEst;
+    added += flightReal;
+    realFlight = true;
+  }
+  const ferryReal = d.ferry?.real?.price;
+  const ferryEst = d.ferry?.pricePerPerson;
+  if (ferryReal && ferryReal > 0 && ferryEst && ferryEst > 0 && d.ferry?.real?.roundTrip) {
+    removed += ferryEst;
+    added += ferryReal;
+  }
+  if (removed > 0 && removed < d.budget.max) {
     const land = calculateBudget(profile, {
-      min: Math.max(0, d.budget.min - estimate),
-      max: Math.max(0, d.budget.max - estimate),
+      min: Math.max(0, d.budget.min - removed),
+      max: Math.max(0, d.budget.max - removed),
     });
-    return { min: land.min + real, max: land.max + real, realFlight: true };
+    return { min: land.min + added, max: land.max + added, realFlight };
   }
   return { ...calculateBudget(profile, d.budget), realFlight: false };
 }

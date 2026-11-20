@@ -20,7 +20,11 @@ export default function PriceDisclaimer({ className = '' }: { className?: string
           <strong>Voiture</strong> : calcul approximatif (distance, carburant, péages, parking).
         </li>
         <li>
-          <strong>Train et ferry</strong> : estimation de l&apos;IA, incluse dans le budget total.
+          <strong>Ferry</strong> : quand c&apos;est indiqué « vu sur Ferryhopper », prix indicatif par passager (hors
+          véhicule) pour les dates du séjour. Sinon, estimation de l&apos;IA.
+        </li>
+        <li>
+          <strong>Train</strong> : estimation de l&apos;IA, incluse dans le budget total.
         </li>
       </ul>
       <p className="mt-2">Vérifie toujours le prix final sur le site de réservation.</p>

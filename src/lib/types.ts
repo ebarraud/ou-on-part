@@ -90,6 +90,22 @@ export interface FlightPrice {
   link?: string | null;
 }
 
+export interface FerryInfo {
+  fromPort: string;
+  toPort: string;
+  duration?: string; // estimation de Claude
+  pricePerPerson?: number; // estimation de Claude, A/R par passager (incluse dans budget.min)
+  vehiclePrice?: number | null; // estimation de Claude, A/R pour une voiture
+  real?: {
+    price: number; // € / passager (A/R si roundTrip), hors véhicule, vu sur Ferryhopper
+    roundTrip: boolean;
+    returnEstimated: boolean;
+    durationHours: number;
+    operator: string | null;
+    link: string | null;
+  };
+}
+
 export interface Destination {
   id: string;
   country: string;
@@ -109,6 +125,7 @@ export interface Destination {
   flightPrice?: FlightPrice; // prix réel constaté (Travelpayouts) aux dates demandées
   flightAlternative?: Omit<FlightPrice, 'approx'>; // moins cher à ±3 jours (dates précises)
   flightSearchLink?: string; // recherche Aviasales aux dates demandées quand aucun prix n'est connu
+  ferry?: FerryInfo | null; // traversée en ferry, si le trajet en comporte une
   flightDuration: string;
   travelHours?: number; // durée du trajet principal aller, en heures décimales
   flightType: string;

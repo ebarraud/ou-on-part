@@ -1,7 +1,7 @@
 import type { TravelProfile, Destination, Itinerary, Route } from './types';
 import { useTravelStore } from './store';
 import { getDepartureIata } from './airports';
-import { getPassengers } from './booking-links';
+import { getDates, getPassengers } from './booking-links';
 import { formatRange, getNightsCount, hasExactDates } from './dates';
 import { getBudgetMultiplier, isHolidayPeak } from './budget';
 import {
@@ -107,6 +107,7 @@ Génère EXACTEMENT ${count} destination${plural ? 's' : ''} en JSON avec cette 
       "matchReasons": ["Raison 1", "Raison 2", "Raison 3"],
       "budget": { "min": 860, "max": 1050, "currency": "EUR", "includes": "vol + hôtel X nuits", "flight": 280 },
       "airportCode": "ATH",
+      "ferry": null,
       "flightDuration": "3h30",
       "travelHours": 3.5,
       "flightType": "direct",
@@ -157,6 +158,7 @@ ${profile.sportActivities.length > 0 ? '- Activités sportives : ' + profile.spo
 - matchScore entre 70 et 99${plural ? ', la première destination a le meilleur score' : ''}
 - flightDuration : durée lisible du trajet aller (ex : "3h30", "2h45 (1 escale)")
 - budget.flight : ta part estimée du vol aller-retour par personne dans budget.min (0 si pas d'avion)
+- ferry : si le trajet conseillé depuis ${profile.departureCity} comprend une traversée en ferry (Corse, Sardaigne, Baléares, îles grecques, Maghreb…) avec les transports acceptés, renseigne { "fromPort": "Toulon", "toPort": "Ajaccio", "duration": "6h", "pricePerPerson": 90, "vehiclePrice": 220 } : noms de ports simples, pricePerPerson = aller-retour par passager (compris dans budget.min), vehiclePrice = aller-retour pour une voiture ou null. Sinon null.
 - airportCode : code IATA de la VILLE de l'aéroport d'arrivée le plus pratique (ex : "TYO", "LIS", "PMI", "RUN"), même si l'avion n'est pas choisi
 - Warnings pertinents pour cette période (météo, saison des pluies, haute saison, prix des fêtes…)
 - waterTemp peut être null si pas de mer
@@ -252,6 +254,44 @@ async function attachFlightPrices(profile: TravelProfile, batch: Destination[]):
   );
 }
 
+// Prix indicatifs des traversées (Ferryhopper) — en cas d'échec on garde l'estimation de Claude
+async function attachFerryPrices(profile: TravelProfile, batch: Destination[]): Promise<void> {
+  const { checkin, checkout } = getDates(profile);
+  const pax = getPassengers(profile);
+  const passengers = pax.adults + pax.childAges.length + pax.infants;
+  await Promise.all(
+    batch.map(async (d) => {
+      const f = d.ferry;
+      if (!f || !f.fromPort || !f.toPort) return;
+      try {
+        const qs = new URLSearchParams({
+          from: f.fromPort,
+          to: f.toPort,
+          date: checkin,
+          return: checkout,
+          passengers: String(passengers),
+          vehicle: profile.transport.includes('car') ? '1' : '0',
+        });
+        const res = await fetch(`/api/ferry?${qs}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.found && data.price > 0) {
+          f.real = {
+            price: data.price,
+            roundTrip: !!data.roundTrip,
+            returnEstimated: !!data.returnEstimated,
+            durationHours: data.durationHours || 0,
+            operator: data.operator || null,
+            link: data.link || null,
+          };
+        }
+      } catch (err) {
+        console.warn(`[ferry] ${d.city} : indisponible`, err);
+      }
+    })
+  );
+}
+
 export interface DestinationsResult {
   destinations: Destination[];
   rejected: Rejection[];
@@ -284,7 +324,7 @@ export async function generateValidDestinations(
       break;
     }
 
-    await attachFlightPrices(profile, batch);
+    await Promise.all([attachFlightPrices(profile, batch), attachFerryPrices(profile, batch)]);
 
     for (const d of batch) {
       if (valid.length >= count) break;

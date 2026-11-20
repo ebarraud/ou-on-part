@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 // Traversées ferry via le serveur MCP public de Ferryhopper (prix indicatifs + lien de réservation).
-// GET /api/ferry?from=Toulon&to=Ajaccio&date=2026-12-20
+// GET /api/ferry?from=Toulon&to=Ajaccio&date=2027-05-15&return=2027-05-22&passengers=2&vehicle=1
 
 export const dynamic = 'force-dynamic';
 
@@ -9,6 +9,7 @@ const MCP_URL = 'https://mcp.ferryhopper.com/mcp';
 const CACHE_HEADERS = { 'Cache-Control': 's-maxage=21600, stale-while-revalidate=86400' };
 
 /** Lit une réponse JSON-RPC, en JSON simple ou en flux SSE (« data: {...} »). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function readRpc(res: Response): Promise<any> {
   const text = await res.text();
   if ((res.headers.get('content-type') || '').includes('text/event-stream')) {
@@ -40,14 +41,11 @@ async function rpc(method: string, params: unknown, id: number | null, sessionId
   return { res, sessionId: res.headers.get('mcp-session-id') || sessionId };
 }
 
-async function callTool(name: string, args: Record<string, unknown>) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function callTool(name: string, args: Record<string, unknown>): Promise<any> {
   const init = await rpc(
     'initialize',
-    {
-      protocolVersion: '2025-06-18',
-      capabilities: {},
-      clientInfo: { name: 'ou-on-part', version: '1.0' },
-    },
+    { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'ou-on-part', version: '1.0' } },
     1
   );
   if (!init.res.ok) throw new Error(`initialize ${init.res.status}`);
@@ -62,84 +60,134 @@ async function callTool(name: string, args: Record<string, unknown>) {
   return msg?.result;
 }
 
-/** Extrait les objets structurés de la réponse d'outil (structuredContent ou texte JSON). */
-function extractPayload(result: any): any {
-  if (!result) return null;
-  if (result.structuredContent) return result.structuredContent;
-  for (const c of result.content || []) {
-    if (c.type === 'text') {
-      try {
-        return JSON.parse(c.text);
-      } catch {}
-    }
-  }
-  return result;
+interface Leg {
+  price: number; // € aller simple, 1 passager, hébergement le moins cher
+  departure: string;
+  durationHours: number;
+  operator: string | null;
+  fromCode: string | null;
+  toCode: string | null;
+  deepLink: string | null;
 }
 
-/** Parcourt récursivement la réponse pour trouver prix et liens Ferryhopper. */
-function scan(node: any, found: { prices: number[]; links: string[]; durations: string[]; operators: string[] }) {
-  if (node == null) return;
-  if (Array.isArray(node)) {
-    node.forEach((n) => scan(n, found));
-    return;
-  }
-  if (typeof node === 'object') {
-    for (const [k, v] of Object.entries(node)) {
-      const key = k.toLowerCase();
-      if (typeof v === 'number' && /price|amount|fare|cost/.test(key) && v > 0) found.prices.push(v);
-      if (typeof v === 'string') {
-        if (/ferryhopper\.com/.test(v) && /^https?:/.test(v)) found.links.push(v);
-        if (/price|amount|fare/.test(key)) {
-          const n = parseFloat(v.replace(',', '.').replace(/[^\d.]/g, ''));
-          if (n > 0) found.prices.push(n);
-        }
-        if (/duration/.test(key)) found.durations.push(v);
-        if (/operator|company/.test(key)) found.operators.push(v);
+/** Itinéraire direct le moins cher d'une réponse search_trips (prix en centimes). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function cheapestLeg(result: any): Leg | null {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const itineraries: any[] = result?.structuredContent?.foundDirectItinerariesForTrip || [];
+  let best: Leg | null = null;
+  for (const it of itineraries) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const segments: any[] = it.segments || [];
+    if (segments.length === 0) continue;
+    let total = 0;
+    for (const seg of segments) {
+      const cents: number[] = (seg.accommodations || [])
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .map((a: any) => a?.expectedPrice?.totalPriceInCents)
+        .filter((c: unknown): c is number => typeof c === 'number' && c > 0);
+      if (cents.length === 0) {
+        total = NaN;
+        break;
       }
-      scan(v, found);
+      total += Math.min(...cents) / 100;
     }
+    if (!isFinite(total)) continue;
+    const first = segments[0];
+    const last = segments[segments.length - 1];
+    const hours = (Date.parse(last.arrivalDateTime) - Date.parse(first.departureDateTime)) / 3_600_000;
+    let fromCode: string | null = null;
+    let toCode: string | null = null;
+    try {
+      const itin = new URL(it.deepLink).searchParams.get('itinerary')?.split(',') || [];
+      fromCode = itin[0] || null;
+      toCode = itin[itin.length - 1] || null;
+    } catch {}
+    const leg: Leg = {
+      price: total,
+      departure: first.departureDateTime,
+      durationHours: isFinite(hours) && hours > 0 ? Math.round(hours * 10) / 10 : 0,
+      operator: first.ownerCompany?.name || first.marketingCompany?.name || null,
+      fromCode,
+      toCode,
+      deepLink: it.deepLink || null,
+    };
+    if (!best || leg.price < best.price) best = leg;
   }
+  return best;
 }
+
+function titleCase(s: string | null): string | null {
+  if (!s) return null;
+  return s
+    .toLowerCase()
+    .split(/([\s-])/)
+    .map((w) => (w.length > 1 || /[a-zà-ÿ]/i.test(w) ? w.charAt(0).toUpperCase() + w.slice(1) : w))
+    .join('');
+}
+
+const YMD = /^\d{4}-\d{2}-\d{2}$/;
 
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const from = (params.get('from') || '').trim();
   const to = (params.get('to') || '').trim();
   const date = params.get('date') || '';
+  const returnDate = params.get('return') || '';
+  const passengers = Math.min(9, Math.max(1, parseInt(params.get('passengers') || '1', 10) || 1));
+  const vehicles = params.get('vehicle') === '1' ? 1 : 0;
   const debug = params.get('debug') === '1';
 
-  if (!from || !to || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+  if (!from || !to || !YMD.test(date) || (returnDate && !YMD.test(returnDate))) {
     return NextResponse.json({ found: false, reason: 'paramètres invalides' }, { status: 400 });
   }
 
   try {
-    const result = await callTool('search_trips', {
-      departureLocation: from,
-      arrivalLocation: to,
-      date,
-    });
-    const payload = extractPayload(result);
+    const [outRaw, backRaw] = await Promise.all([
+      callTool('search_trips', { departureLocation: from, arrivalLocation: to, date }),
+      returnDate
+        ? callTool('search_trips', { departureLocation: to, arrivalLocation: from, date: returnDate }).catch(() => null)
+        : Promise.resolve(null),
+    ]);
     if (debug) {
-      return NextResponse.json({ debug: true, raw: JSON.stringify(result).slice(0, 6000) });
+      return NextResponse.json({ debug: true, raw: JSON.stringify(outRaw).slice(0, 6000) });
     }
 
-    const found = { prices: [] as number[], links: [] as string[], durations: [] as string[], operators: [] as string[] };
-    scan(payload, found);
-    const price = found.prices.length ? Math.round(Math.min(...found.prices)) : null;
-    const link = found.links[0] || null;
+    const out = cheapestLeg(outRaw);
+    const back = backRaw ? cheapestLeg(backRaw) : null;
+    if (!out) {
+      return NextResponse.json({ found: false, reason: 'aucune traversée directe trouvée' }, { headers: CACHE_HEADERS });
+    }
+
+    // Lien Ferryhopper (fr) : aller-retour si possible, voyageurs et véhicule
+    let link: string | null = null;
+    if (out.deepLink) {
+      const url = new URL(out.deepLink);
+      url.pathname = url.pathname.replace(/^\/en\//, '/fr/');
+      url.searchParams.delete('IDSCode');
+      if (returnDate && out.fromCode && out.toCode) {
+        url.searchParams.set('itinerary', `${out.fromCode},${out.toCode},${out.fromCode}`);
+        url.searchParams.set('dates', `${date.replace(/-/g, '')},${returnDate.replace(/-/g, '')}`);
+      }
+      url.searchParams.set('passengers', String(passengers));
+      url.searchParams.set('vehicles', String(vehicles));
+      link = url.toString();
+    }
 
     return NextResponse.json(
       {
-        found: !!(price || link),
-        price, // aller simple, passager, prix indicatif
+        found: true,
+        price: Math.round(out.price + (returnDate ? back?.price ?? out.price : 0)), // € / passager, hors véhicule
+        roundTrip: !!returnDate,
+        returnEstimated: !!returnDate && !back, // retour non trouvé : prix de l'aller doublé
+        durationHours: out.durationHours,
+        operator: titleCase(out.operator),
         link,
-        operators: Array.from(new Set(found.operators)).slice(0, 3),
-        duration: found.durations[0] || null,
       },
       { headers: CACHE_HEADERS }
     );
   } catch (error) {
     console.error('[ferry] erreur', error);
-    return NextResponse.json({ found: false, reason: String(error).slice(0, 200) });
+    return NextResponse.json({ found: false, reason: 'Ferryhopper indisponible' });
   }
 }
