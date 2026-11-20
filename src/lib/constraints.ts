@@ -1,6 +1,6 @@
 import type { TravelProfile, Destination } from './types';
 import { BUDGET_MAX_BY_NIGHTS } from './questions';
-import { calculateBudget, getBudgetMultiplier } from './budget';
+import { getBudgetMultiplier, getDisplayedBudget } from './budget';
 
 // =============================================
 // Contraintes éliminatoires — vérifiées par le code,
@@ -94,12 +94,12 @@ export function checkDestination(
   }
 
   const cap = getBudgetCap(profile);
-  const budget = calculateBudget(profile, d.budget);
+  const budget = getDisplayedBudget(profile, d);
   if (budget.min > cap) {
     return {
       destination: d,
       kind: 'budget',
-      reason: `budget minimum ${budget.min}€ au-dessus du maximum de ${cap}€`,
+      reason: `budget minimum ${budget.min}€${budget.realFlight ? ` (dont vol à ${d.flightPrice!.price}€, prix constaté)` : ''} au-dessus du maximum de ${cap}€`,
       overshoot: budget.min - cap,
     };
   }

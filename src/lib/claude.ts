@@ -1,5 +1,6 @@
 import type { TravelProfile, Destination, Itinerary, Route } from './types';
 import { useTravelStore } from './store';
+import { getOriginIata } from './airports';
 import { getBudgetMultiplier, isHolidayPeak } from './budget';
 import {
   checkDestination,
@@ -99,7 +100,8 @@ Génère EXACTEMENT ${count} destination${plural ? 's' : ''} en JSON avec cette 
       "flag": "emoji drapeau",
       "matchScore": 98,
       "matchReasons": ["Raison 1", "Raison 2", "Raison 3"],
-      "budget": { "min": 860, "max": 1050, "currency": "EUR", "includes": "vol + hôtel X nuits" },
+      "budget": { "min": 860, "max": 1050, "currency": "EUR", "includes": "vol + hôtel X nuits", "flight": 280 },
+      "airportCode": "ATH",
       "flightDuration": "3h30",
       "travelHours": 3.5,
       "flightType": "direct",
@@ -148,6 +150,8 @@ ${profile.sportActivities.length > 0 ? '- Activités sportives : ' + profile.spo
 ═══ FORMAT ═══
 - matchScore entre 70 et 99${plural ? ', la première destination a le meilleur score' : ''}
 - flightDuration : durée lisible du trajet aller (ex : "3h30", "2h45 (1 escale)")
+- budget.flight : ta part estimée du vol aller-retour par personne dans budget.min (0 si pas d'avion)
+- airportCode : code IATA de la VILLE de l'aéroport d'arrivée le plus pratique (ex : "TYO", "LIS", "PMI", "RUN"), même si l'avion n'est pas choisi
 - Warnings pertinents pour cette période (météo, saison des pluies, haute saison, prix des fêtes…)
 - waterTemp peut être null si pas de mer
 - countryCode = code ISO 2 lettres (ex : "GR", "ES", "TH"). Outre-mer français : "MQ", "GP", "RE", "NC", "PF", "GF", "YT" (pas "FR")
@@ -167,6 +171,40 @@ async function requestDestinations(
   if (Array.isArray(parsed.destinations)) return parsed.destinations;
   if (parsed.destination) return [parsed.destination];
   throw new Error('Aucune destination dans la réponse de Claude');
+}
+
+// Prix réels des vols (Travelpayouts) — en cas d'échec on garde l'estimation de Claude
+async function attachFlightPrices(profile: TravelProfile, batch: Destination[]): Promise<void> {
+  if (!profile.transport.includes('plane')) return;
+  const origin = getOriginIata(profile.departureCity);
+  if (!origin || profile.monthIndex < 0 || !profile.year) return;
+  const month = `${profile.year}-${String(profile.monthIndex + 1).padStart(2, '0')}`;
+
+  await Promise.all(
+    batch.map(async (d) => {
+      const dest = (d.airportCode || '').toUpperCase();
+      if (!/^[A-Z]{3}$/.test(dest) || dest === origin) return;
+      try {
+        const qs = new URLSearchParams({ origin, destination: dest, month, nights: profile.nights || '7' });
+        if (profile.monthHalf) qs.set('half', profile.monthHalf);
+        const res = await fetch(`/api/flight-prices?${qs}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.found && data.price > 0) {
+          d.flightPrice = {
+            price: data.price,
+            approx: !!data.approx,
+            departureAt: data.departureAt,
+            returnAt: data.returnAt,
+            transfers: data.transfers,
+            link: data.link,
+          };
+        }
+      } catch (err) {
+        console.warn(`[prix vol] ${d.city} : indisponible`, err);
+      }
+    })
+  );
 }
 
 export interface DestinationsResult {
@@ -200,6 +238,8 @@ export async function generateValidDestinations(
       console.error('Relance Claude échouée :', err);
       break;
     }
+
+    await attachFlightPrices(profile, batch);
 
     for (const d of batch) {
       if (valid.length >= count) break;

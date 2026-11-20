@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTravelStore } from '@/lib/store';
 import { generateValidDestinations } from '@/lib/claude';
-import { calculateBudget } from '@/lib/budget';
+import { getDisplayedBudget } from '@/lib/budget';
 import {
   buildRelaxSuggestions,
   describeCriteria,
@@ -210,7 +210,7 @@ export default function ResultsPage() {
               <DestinationCard
                 key={dest.id}
                 destination={dest}
-                displayBudget={calculateBudget(profile, dest.budget)}
+                displayBudget={getDisplayedBudget(profile, dest)}
                 rank={(i + 1) as 1 | 2 | 3}
                 onSelect={() => handleSelect(dest)}
                 onReject={replacingIndex !== null ? undefined : handleReject}
@@ -247,7 +247,7 @@ export default function ResultsPage() {
             <DestinationCard
               key={`miss-${dest.id}-${i}`}
               destination={dest}
-              displayBudget={calculateBudget(profile, dest.budget)}
+              displayBudget={getDisplayedBudget(profile, dest)}
               rank={(i + 1) as 1 | 2 | 3}
               onSelect={() => handleSelect(dest)}
               departureCity={profile.departureCity}

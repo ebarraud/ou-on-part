@@ -62,6 +62,11 @@ export default function DestinationCard({
         </div>
 
         {/* Quick info */}
+        {d.flightPrice && (
+          <div className="text-xs text-emerald-700 mb-1">
+            ✈️ Vol A/R dès {d.flightPrice.price.toLocaleString('fr-FR')}€ · prix constaté{d.flightPrice.approx ? ' (dates proches)' : ''}
+          </div>
+        )}
         <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
           <span>✈️ {d.flightDuration}</span>
           <span>☀️ {d.airTemp}°C</span>

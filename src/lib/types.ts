@@ -73,6 +73,15 @@ export interface Warning {
   text: string;
 }
 
+export interface FlightPrice {
+  price: number; // aller-retour, €/pers.
+  approx: boolean; // dates ou durée différentes de la demande
+  departureAt?: string;
+  returnAt?: string;
+  transfers?: number | null;
+  link?: string | null;
+}
+
 export interface Destination {
   id: string;
   country: string;
@@ -86,7 +95,10 @@ export interface Destination {
     max: number;
     currency: string;
     includes: string;
+    flight?: number; // part estimée du vol aller-retour dans le budget (€/pers.)
   };
+  airportCode?: string; // code IATA (ville) de l'aéroport d'arrivée
+  flightPrice?: FlightPrice; // prix réel constaté (Travelpayouts), si trouvé
   flightDuration: string;
   travelHours?: number; // durée du trajet principal aller, en heures décimales
   flightType: string;

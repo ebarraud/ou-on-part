@@ -1,4 +1,4 @@
-import type { TravelProfile } from './types';
+import type { TravelProfile, Destination } from './types';
 
 // Période des fêtes (22 déc. – 4 janv.) : la semaine la plus chère de l'année,
 // surtout en long-courrier.
@@ -42,4 +42,25 @@ export function calculateBudget(
     min: Math.round(baseEstimate.min * multiplier),
     max: Math.round(baseEstimate.max * multiplier),
   };
+}
+
+/**
+ * Budget affiché (et vérifié par le filtre) pour une destination.
+ * Si un prix de vol réel est connu : estimation hors vol majorée + prix réel du vol
+ * (le prix réel intègre déjà la saison, on ne le majore pas).
+ */
+export function getDisplayedBudget(
+  profile: TravelProfile,
+  d: Pick<Destination, 'budget' | 'flightPrice'>
+): { min: number; max: number; realFlight: boolean } {
+  const real = d.flightPrice?.price;
+  const estimate = d.budget.flight;
+  if (real && real > 0 && estimate && estimate > 0 && estimate < d.budget.max) {
+    const land = calculateBudget(profile, {
+      min: Math.max(0, d.budget.min - estimate),
+      max: Math.max(0, d.budget.max - estimate),
+    });
+    return { min: land.min + real, max: land.max + real, realFlight: true };
+  }
+  return { ...calculateBudget(profile, d.budget), realFlight: false };
 }

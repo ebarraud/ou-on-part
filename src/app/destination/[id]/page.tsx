@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useTravelStore } from '@/lib/store';
-import { calculateBudget } from '@/lib/budget';
+import { getDisplayedBudget } from '@/lib/budget';
 import { getSkyscannerLink, getBookingLink, getGetYourGuideLink } from '@/lib/booking-links';
 import WarningBadge from '@/components/results/WarningBadge';
 
@@ -24,7 +24,7 @@ export default function DestinationPage() {
     );
   }
 
-  const adjustedBudget = calculateBudget(profile, dest.budget);
+  const adjustedBudget = getDisplayedBudget(profile, dest);
 
   return (
     <div className="flex flex-col min-h-screen pb-8">
@@ -84,6 +84,22 @@ export default function DestinationPage() {
               {adjustedBudget.min.toLocaleString('fr-FR')}€ – {adjustedBudget.max.toLocaleString('fr-FR')}€
             </p>
           </div>
+          <div className="col-span-2">
+            <p className="text-xs text-gray-400">Vol aller-retour</p>
+            {dest.flightPrice ? (
+              <p className="text-sm font-semibold">
+                ✈️ dès {dest.flightPrice.price.toLocaleString('fr-FR')}€ / pers.
+                <span className="text-xs font-normal text-gray-500 ml-1">
+                  prix constaté sur Aviasales{dest.flightPrice.approx ? ' (dates proches)' : ''}
+                </span>
+              </p>
+            ) : (
+              <p className="text-sm font-semibold">
+                {dest.budget.flight ? `~${dest.budget.flight.toLocaleString('fr-FR')}€ / pers.` : '—'}
+                <span className="text-xs font-normal text-gray-500 ml-1">estimation</span>
+              </p>
+            )}
+          </div>
           <div>
             <p className="text-xs text-gray-400">Visa requis</p>
             <p className="text-sm font-semibold">{dest.visaRequired ? '⚠️ Oui' : '✅ Non'}</p>
@@ -135,6 +151,19 @@ export default function DestinationPage() {
         {/* Booking links — pre-filled from profile */}
         <div className="mb-6 space-y-2">
           <h2 className="text-lg font-bold text-gray-900 mb-3">Réserver</h2>
+          {dest.flightPrice?.link && (
+            <a
+              href={dest.flightPrice.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 rounded-btn border border-emerald-200 bg-emerald-50 px-4 py-3 hover:bg-emerald-100 transition-colors"
+            >
+              <span className="text-xl">✈️</span>
+              <span className="text-sm font-medium">
+                Voir le vol à {dest.flightPrice.price.toLocaleString('fr-FR')}€ sur Aviasales
+              </span>
+            </a>
+          )}
           <a
             href={getSkyscannerLink(profile, dest)}
             target="_blank"
